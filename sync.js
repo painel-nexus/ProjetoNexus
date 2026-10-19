@@ -28,7 +28,7 @@
   // true  = qualquer pessoa com o link vê o painel; só quem tem login edita
   // false = é preciso login até para visualizar (troque também a política
   //         de leitura no SQL, conforme indicado lá)
-  var LEITURA_PUBLICA = true;
+  var LEITURA_PUBLICA = false;
 
   // ═══════════════════════════════════════════════
   // CONSTANTES
@@ -183,6 +183,13 @@
 
   if (!logado) document.documentElement.classList.add('nexus-anon');
 
+  // Painel fechado (LEITURA_PUBLICA = false) e ninguém logado: apaga qualquer
+  // cópia local dos dados, para nada ficar guardado neste navegador.
+  function limparDadosLocais() {
+    CHAVES.forEach(function (k) { try { origRemove.call(ls, k); } catch (e) {} });
+  }
+  if (CONFIGURADO && !LEITURA_PUBLICA && !logado) limparDadosLocais();
+
   if (CONFIGURADO && (!precisaLogin || logado)) {
     var tokenLeitura = logado ? sessao.access_token : null;
     var caminhoLeitura = '/rest/v1/' + TABELA + '?select=key,value';
@@ -316,6 +323,8 @@
     '#nx-login { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center;',
     '  justify-content: center; padding: 20px; background: rgba(3,8,17,.88); backdrop-filter: blur(4px);',
     '  font-family: "Segoe UI", Inter, Arial, sans-serif; }',
+    // Painel fechado: fundo totalmente opaco, nada aparece por trás do login
+    '#nx-login.nx-fechado { background: #030811; backdrop-filter: none; }',
     '#nx-login form { width: 100%; max-width: 360px; background: #111827; border: 1px solid #334155;',
     '  border-radius: 14px; padding: 26px; color: #e2e8f0; box-shadow: 0 20px 50px rgba(0,0,0,.5); }',
     '#nx-login h2 { font-size: 17px; font-weight: 800; margin: 0 0 4px; }',
@@ -387,6 +396,7 @@
     if (document.getElementById('nx-login')) return;
     var box = document.createElement('div');
     box.id = 'nx-login';
+    if (!LEITURA_PUBLICA) box.className = 'nx-fechado';
     box.innerHTML =
       '<form autocomplete="on">' +
       '  <h2>Projeto Nexus</h2>' +
@@ -430,7 +440,11 @@
   }
 
   function sair() {
-    var fim = function () { gravarSessao(null); location.reload(); };
+    var fim = function () {
+      gravarSessao(null);
+      if (!LEITURA_PUBLICA) limparDadosLocais();
+      location.reload();
+    };
     var s = lerSessao();
     (temPendente() ? flush() : Promise.resolve())
       .catch(function () {})
