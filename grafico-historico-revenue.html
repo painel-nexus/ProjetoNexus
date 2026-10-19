@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <!-- Sincronização com o banco (Supabase): deve ser o primeiro script da página -->
+  <script src="sync.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0b1120"/>
+  <title>Nexus · Histórico Revenue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #030811; --surface: #071224; --card: #0b1a30;
+      --border: #112240; --border2: #182e4d;
+      --blue: #3b82f6; --blue2: #60a5fa;
+      --green: #22c55e; --green2: #a3e635;
+      --yellow: #eab308; --red: #f43f5e; --purple: #a78bfa;
+      --text: #e2e8f0; --text2: #94a3b8; --muted: #64748b;
+    }
+    html { background: var(--bg); }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      font-size: 13px; line-height: 1.5; padding: 0 0 40px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* HEADER */
+    .hdr {
+      display: flex; align-items: stretch;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      min-height: 64px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hdr-logo { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-right: 1px solid var(--border); }
+    .hdr-logo img { height: 40px; width: auto; }
+    .hdr-logo-text small { display: block; font-size: 9px; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; }
+    .hdr-logo-text strong { font-size: 22px; font-weight: 900; color: var(--text); letter-spacing: 1px; }
+    .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; }
+    .hdr-title h1 { font-size: 18px; font-weight: 800; }
+    .hdr-title p { font-size: 12px; color: var(--text2); }
+
+    /* PANEL */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin: 16px; padding: 16px;
+    }
+    .panel-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--text2);
+      margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;
+    }
+
+    /* CHART */
+    .chart-container { position: relative; height: 380px; padding: 10px 0 20px; }
+
+    /* TOOLTIP */
+    .chart-tip {
+      display: none; position: absolute; pointer-events: none;
+      background: #0f172a; border: 1px solid var(--border2); border-radius: 10px;
+      padding: 10px 12px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55); z-index: 10; white-space: nowrap;
+    }
+    .chart-tip .tip-data { color: var(--text2); font-size: 11px; margin-bottom: 5px; }
+    .chart-tip .tip-linha { display: flex; justify-content: space-between; gap: 18px; }
+    .chart-tip .tip-linha strong { font-weight: 800; }
+    .chart-tip .tip-sep { border-top: 1px solid rgba(255,255,255,.1); margin: 5px 0; }
+    .chart-legend {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+      font-size: 11px; color: var(--text2); margin-top: 12px;
+    }
+    .cl-item { display: flex; align-items: center; gap: 6px; }
+    .cl-dot { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+    .chart-premissa {
+      margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border);
+      font-size: 11px; font-style: italic; color: #a78bfa; line-height: 1.5;
+    }
+
+    /* TABELA */
+    .tbl-wrap { overflow-x: auto; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      background: var(--card); padding: 10px; text-align: left;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border2);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    tbody td { padding: 8px 10px; color: var(--text); white-space: nowrap; }
+    tbody td.sprint { font-weight: 700; color: var(--blue2); }
+    .val-blue  { color: var(--blue2); font-weight: 600; }
+    .val-green { color: var(--green); font-weight: 600; }
+    .val-purple{ color: var(--purple); font-weight: 600; }
+    .val-red   { color: var(--red); font-weight: 600; }
+
+    /* HEADER DA TABELA COM BOTÕES */
+    .tbl-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+    .tbl-header .tbl-title-inline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text2); }
+    .tbl-actions { display: flex; gap: 8px; }
+    .btn-add, .btn-edit {
+      border: none; padding: 8px 14px; border-radius: 8px;
+      font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .btn-add { background: var(--blue); color: #fff; }
+    .btn-add:hover { background: var(--blue2); }
+    .btn-edit { background: var(--surface); border: 1px solid var(--border2); color: var(--text2); }
+    .btn-edit:hover { border-color: var(--green); color: var(--green); }
+    .btn-edit.active { background: var(--green); color: #05231a; border-color: var(--green); }
+    .btn-pdf {
+      background: var(--surface); border: 1px solid var(--border2); color: var(--text2);
+      padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700;
+      cursor: pointer; font-family: inherit; letter-spacing: 0; text-transform: none;
+    }
+    .btn-pdf:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* PRINT / PDF */
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body { background: var(--bg) !important; }
+      .btn-pdf, .btn-add, .btn-edit, .tbl-actions { display: none !important; }
+      .panel { break-inside: avoid; }
+    }
+
+    /* AÇÕES POR LINHA (modo edição) */
+    .row-actions { display: none; }
+    body.edit-mode .row-actions { display: table-cell; }
+    body.edit-mode th.row-actions { display: table-cell; }
+    .btn-row-del { background: rgba(244,63,94,.15); border: none; color: var(--red); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+    body.edit-mode tbody td[contenteditable] { outline: 1px dashed var(--border2); cursor: text; }
+    body.edit-mode tbody td[contenteditable]:focus { outline: 1px solid var(--blue); background: rgba(59,130,246,.08); }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 24px; width: 100%; max-width: 440px; }
+    .modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 18px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field.full { grid-column: 1 / -1; }
+    .modal-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .modal-field input { background: var(--card); border: 1px solid var(--border2); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .modal-field input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+    .btn-cancel { background: var(--card); border: 1px solid var(--border2); color: var(--text2); padding: 10px 20px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-save { background: var(--green); border: none; color: #05231a; padding: 10px 22px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-hist-link { transition: border-color .15s, background .15s; }
+    .btn-hist-link:hover { border-color: var(--blue) !important; background: #16233b !important; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <img src="LOGO MV.png" alt="Logo"/>
+    <div class="hdr-logo-text">
+      <small>Projeto</small>
+      <strong>NEXUS</strong>
+    </div>
+  </div>
+  <div class="hdr-title">
+    <h1>HISTÓRICO REVENUE</h1>
+    <p>Evolução por Sprint — Desenvolvimento e Validação</p>
+  </div>
+</div>
+
+<!-- NAVEGAÇÃO ENTRE GRÁFICOS -->
+<div style="display:flex;gap:8px;margin:16px 16px 0;flex-wrap:wrap">
+  <a href="painel-nexus.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+    <span style="width:8px;height:8px;border-radius:2px;background:var(--blue2)"></span> Painel Nexus
+  </a>
+  <a href="grafico-historico-central.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+    <span style="width:8px;height:8px;border-radius:2px;background:var(--green)"></span> Central
+  </a>
+  <a href="grafico-historico-revenue.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+    <span style="width:8px;height:8px;border-radius:2px;background:var(--orange,#fb923c)"></span> Revenue
+  </a>
+</div>
+
+<!-- SEÇÃO 1: GRÁFICO -->
+<div class="panel">
+  <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <span>REVENUE - Evolução dos Indicadores por Sprint</span>
+    <button class="btn-pdf" onclick="exportarPDF()">📄 Exportar PDF</button>
+  </div>
+  <div class="chart-container" id="chart-container">
+    <canvas id="chart-revenue" style="width:100%;height:100%"></canvas>
+    <div class="chart-tip" id="chart-tip"></div>
+  </div>
+  <div class="chart-legend">
+    <span class="cl-item"><span class="cl-dot" style="background:#3b82f6"></span> % Prev. Desenv. Revenue</span>
+    <span class="cl-item"><span class="cl-dot" style="background:#22c55e"></span> % Real. Desenv. Revenue</span>
+    <span class="cl-item"><span class="cl-dot" style="background:#a78bfa"></span> Prev. Validado (Scrum)**</span>
+    <span class="cl-item"><span class="cl-dot" style="background:#f43f5e"></span> % Validado Real</span>
+  </div>
+  <div class="chart-premissa">
+    Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.
+  </div>
+</div>
+
+<!-- SEÇÃO 2: DADOS DETALHADOS -->
+<div class="panel">
+  <div class="tbl-header">
+    <span class="tbl-title-inline">REVENUE - Dados Detalhados</span>
+    <div class="tbl-actions">
+      <button class="btn-add" onclick="abrirModal()">+ Incluir dados</button>
+      <button class="btn-edit" id="btn-edit" onclick="toggleEdit()">✎ Editar dados</button>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Sprint</th>
+          <th>Início</th>
+          <th>Término</th>
+          <th>% Prev. Desenv</th>
+          <th>% Real. Desenv</th>
+          <th>Prev. Validado (Scrum)**</th>
+          <th>% Validado Real</th>
+          <th class="row-actions">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+  <p style="font-size:11px;color:var(--muted);margin-top:12px">** Previsto Validado Revenue com Estratégia Scrum Correta</p>
+  <p id="edit-hint" style="display:none;font-size:11px;color:var(--green);margin-top:6px">Modo edição ativo — use os botões "Editar" e "Excluir" em cada linha. As alterações são salvas automaticamente.</p>
+</div>
+
+<!-- MODAL: INCLUIR / EDITAR SPRINT -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Incluir novo Sprint</h3>
+    <div class="modal-grid">
+      <div class="modal-field full">
+        <label>Sprint</label>
+        <input type="text" id="m-sprint" placeholder="Ex: Sprint 15"/>
+      </div>
+      <div class="modal-field">
+        <label>Início</label>
+        <input type="text" id="m-inicio" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>Término</label>
+        <input type="text" id="m-termino" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>% Prev. Desenv</label>
+        <input type="text" id="m-prevDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Real. Desenv</label>
+        <input type="text" id="m-realDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>Prev. Validado (Scrum)</label>
+        <input type="text" id="m-prevValidado" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Validado Real</label>
+        <input type="text" id="m-validado" placeholder="0 ou NA"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-save" onclick="salvarModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DADOS REVENUE
+// ─────────────────────────────────────────────
+const DADOS_DEFAULT = [
+  { sprint:'Sprint 1',  inicio:'qua. 07/01/26', termino:'ter. 20/01/26', prevDesenv:6,  realDesenv:5,  prevValidado:0,  validado:0 },
+  { sprint:'Sprint 2',  inicio:'qua. 21/01/26', termino:'qua. 04/02/26', prevDesenv:12, realDesenv:12, prevValidado:0,  validado:0 },
+  { sprint:'Sprint 3',  inicio:'qui. 05/02/26', termino:'seg. 23/02/26', prevDesenv:20, realDesenv:19, prevValidado:5,  validado:0 },
+  { sprint:'Sprint 4',  inicio:'seg. 23/02/26', termino:'seg. 09/03/26', prevDesenv:26, realDesenv:25, prevValidado:12, validado:0 },
+  { sprint:'Sprint 5',  inicio:'ter. 10/03/26', termino:'ter. 24/03/26', prevDesenv:32, realDesenv:31, prevValidado:19, validado:0 },
+  { sprint:'Sprint 6',  inicio:'qua. 25/03/26', termino:'qui. 09/04/26', prevDesenv:39, realDesenv:38, prevValidado:25, validado:0 },
+  { sprint:'Sprint 7',  inicio:'sex. 10/04/26', termino:'seg. 27/04/26', prevDesenv:46, realDesenv:45, prevValidado:31, validado:0 },
+  { sprint:'Sprint 8',  inicio:'ter. 28/04/26', termino:'seg. 18/05/26', prevDesenv:55, realDesenv:55, prevValidado:38, validado:0 },
+  { sprint:'Sprint 9',  inicio:'ter. 19/05/26', termino:'ter. 02/06/26', prevDesenv:61, realDesenv:61, prevValidado:45, validado:0 },
+  { sprint:'Sprint 10', inicio:'qua. 03/06/26', termino:'qua. 17/06/26', prevDesenv:68, realDesenv:68, prevValidado:55, validado:0 },
+  { sprint:'Sprint 11', inicio:'qui. 18/06/26', termino:'sex. 03/07/26', prevDesenv:76, realDesenv:75, prevValidado:61, validado:0 },
+  { sprint:'Sprint 12', inicio:'seg. 06/07/26', termino:'seg. 20/07/26', prevDesenv:82, realDesenv:81, prevValidado:68, validado:6 },
+  { sprint:'Sprint 13', inicio:'ter. 21/07/26', termino:'ter. 04/08/26', prevDesenv:92, realDesenv:87, prevValidado:75, validado:6 },
+  { sprint:'Sprint 14', inicio:'qua. 05/08/26', termino:'qui. 20/08/26', prevDesenv:94, realDesenv:94, prevValidado:81, validado:6 },
+];
+
+const STORAGE_KEY = 'nexus_revenue_sprints';
+
+function carregarDados() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DADOS_DEFAULT));
+}
+
+function salvarDados() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DADOS));
+}
+
+let DADOS = carregarDados();
+let editMode = false;
+let editandoIndex = null;   // null = incluir novo; número = editar linha existente
+
+const SERIES = [
+  { key:'prevDesenv',   color:'#3b82f6' },
+  { key:'realDesenv',   color:'#22c55e' },
+  { key:'prevValidado', color:'#a78bfa' },
+  { key:'validado',     color:'#f43f5e' },
+];
+
+// Verifica se um valor é "NA" (não deve ser plotado)
+function isNA(v) {
+  return v === 'NA' || v === null || v === undefined ||
+         (typeof v === 'string' && v.trim().toUpperCase() === 'NA');
+}
+
+// Converte o valor de um input: vazio => 0, "NA" => 'NA', senão número
+function parseValor(id) {
+  const raw = (document.getElementById(id).value || '').trim();
+  if (raw === '') return 0;
+  if (raw.toUpperCase() === 'NA') return 'NA';
+  const n = parseFloat(raw.replace(',', '.'));
+  return isNaN(n) ? 'NA' : n;
+}
+
+// ─────────────────────────────────────────────
+// TOOLTIP (previsto x realizado ao passar o mouse)
+// ─────────────────────────────────────────────
+let CHART_GEO = null;
+let TOOLTIP_LIGADO = false;
+
+function ligarTooltip() {
+  if (TOOLTIP_LIGADO) return;
+  const canvas = document.getElementById('chart-revenue');
+  const tip = document.getElementById('chart-tip');
+  if (!canvas || !tip) return;
+  TOOLTIP_LIGADO = true;
+
+  const fmt = v => isNA(v) ? 'NA' : v + '%';
+  const dev = (r, p) => (isNA(r) || isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#64748b'
+    : d >= -5 ? '#22c55e' : d >= -10 ? '#eab308' : d >= -15 ? '#f43f5e' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="tip-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CHART_GEO) return;
+    const r = canvas.getBoundingClientRect();
+    const mx = ev.clientX - r.left;
+    const { padL, step, n } = CHART_GEO;
+
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = DADOS[idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.termino).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dev(d.realDesenv, d.prevDesenv);
+    const devVal = dev(d.validado, d.prevValidado);
+
+    tip.innerHTML =
+      `<div class="tip-data">${d.sprint} · ${dataCurta}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#3b82f6') +
+      linha('Realizado', fmt(d.realDesenv), '#22c55e') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="tip-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValidado), '#a78bfa') +
+      linha('Validado Real', fmt(d.validado), '#f43f5e') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = (padL + step * idx) + 14;
+    if (left + tw > r.width) left = (padL + step * idx) - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+// ─────────────────────────────────────────────
+// GRÁFICO (Canvas puro — mesmo estilo do painel)
+// ─────────────────────────────────────────────
+function renderChart() {
+  const canvas = document.getElementById('chart-revenue');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+
+  const container = document.getElementById('chart-container');
+  const rect = container.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  const W = canvas.width, H = canvas.height;
+  const padL = 44, padR = 24, padT = 20, padB = 46;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = DADOS.length;
+  const step = chartW / (n - 1);
+  const maxVal = 100;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid horizontal + labels Y (0,20,40,60,80,100)
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  // Labels X (sprint + data do término)
+  DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.textAlign = 'center';
+    // nome do sprint
+    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.fillText(d.sprint, x, H - 22);
+    // data (extrai dd/mm/aa do término)
+    const dt = (String(d.termino).match(/\d{2}\/\d{2}\/\d{2}/) || [''])[0];
+    ctx.fillStyle = '#64748b'; ctx.font = '9px Inter,sans-serif';
+    ctx.fillText(dt, x, H - 9);
+  });
+
+  // Desenha apenas a linha + pontos de uma série
+  function drawLine(key, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    DADOS.forEach((d, i) => {
+      const v = d[key];
+      if (isNA(v)) { iniciado = false; return; }
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    DADOS.forEach((d, i) => {
+      const v = d[key];
+      if (isNA(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  // Converte "qua. 07/01/26" ou "07/01/2026" em Date
+  function parseDataRev(str) {
+    const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+    if (!m) return null;
+    let ano = parseInt(m[3], 10);
+    if (ano < 100) ano += 2000;
+    return new Date(ano, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+  }
+
+  // Retorna a posição (índice fracionário) de uma data no eixo X (pelos términos dos sprints)
+  function posicaoMarcoRev(alvo) {
+    if (!alvo) return null;
+    const datas = DADOS.map(d => parseDataRev(d.termino));
+    if (alvo <= datas[0]) return 0;
+    if (alvo >= datas[datas.length - 1]) return datas.length - 1;
+    for (let i = 0; i < datas.length - 1; i++) {
+      if (alvo >= datas[i] && alvo <= datas[i + 1]) {
+        return i + (alvo - datas[i]) / (datas[i + 1] - datas[i]);
+      }
+    }
+    return null;
+  }
+
+  // Desenha um marco (linha tracejada + etiqueta no topo) numa posição fracionária
+  function desenhaMarco(pos, nome, data, cor, texto) {
+    if (pos === null) return;
+    const mx = padL + step * pos;
+    ctx.save();
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(mx, padT);
+    ctx.lineTo(mx, padT + chartH);
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.textAlign = 'center';
+    const rotulo = nome + ' · ' + data;
+    const larg = ctx.measureText(rotulo).width;
+    let bx = mx;
+    if (bx - larg/2 - 6 < padL) bx = padL + larg/2 + 6;
+    if (bx + larg/2 + 6 > W - padR) bx = W - padR - larg/2 - 6;
+    ctx.fillStyle = cor;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - larg/2 - 6, padT - 16, larg + 12, 15, 4); ctx.fill(); }
+    else ctx.fillRect(bx - larg/2 - 6, padT - 16, larg + 12, 15);
+    ctx.fillStyle = texto;
+    ctx.fillText(rotulo, bx, padT - 5);
+    ctx.restore();
+  }
+
+  // Marco fixo "Deploy" (término do Sprint 12 — 20/07/26)
+  const idxDeploy = DADOS.findIndex(d =>
+    String(d.inicio).includes('20/07/26') || String(d.termino).includes('20/07/26')
+  );
+  if (idxDeploy >= 0) desenhaMarco(idxDeploy, 'Liberado para teste', '20/07/26', '#eab308', '#05231a');
+
+  // Marco "ESTAMOS AQUI" — sempre a data de hoje (dia em que o gráfico é acessado)
+  const hojeRev = new Date();
+  const ddR = String(hojeRev.getDate()).padStart(2, '0');
+  const mmR = String(hojeRev.getMonth() + 1).padStart(2, '0');
+  const aaR = String(hojeRev.getFullYear()).slice(2);
+  desenhaMarco(posicaoMarcoRev(hojeRev), 'ESTAMOS AQUI', `${ddR}/${mmR}/${aaR}`, '#f43f5e', '#ffffff');
+
+  // 1) Desenha todas as linhas e pontos primeiro
+  SERIES.forEach(s => drawLine(s.key, s.color));
+
+  // 2) Rótulos com anti-colisão por coluna (empilha mantendo espaçamento mínimo)
+  const LH = 13;            // altura do rótulo/espaçamento mínimo
+  ctx.font = 'bold 9px Inter,sans-serif';
+  ctx.textAlign = 'center';
+
+  DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    // A partir da Sprint 5 (índice 4), o rótulo de "Prev. Validado (Scrum)" vai ABAIXO da linha
+    const validadoAbaixo = i >= 4;
+
+    // coleta rótulos da coluna com a posição natural (y do ponto) — ignora valores NA
+    let labels = SERIES.filter(s => !isNA(d[s.key])).map(s => ({
+      key: s.key,
+      txt: d[s.key] + '%',
+      color: s.color,
+      yPoint: padT + chartH - (d[s.key] / maxVal) * chartH,
+    }));
+
+    // Separa o rótulo que vai abaixo da linha (prevValidado a partir da Sprint 5)
+    const belowLabels = labels.filter(l => validadoAbaixo && l.key === 'prevValidado');
+    const aboveLabels = labels.filter(l => !(validadoAbaixo && l.key === 'prevValidado'));
+
+    // ── Rótulos ACIMA (empilhamento com anti-colisão) ──
+    aboveLabels.sort((a, b) => a.yPoint - b.yPoint);
+    aboveLabels.forEach(l => { l.y = l.yPoint - 10; });
+    for (let k = 1; k < aboveLabels.length; k++) {
+      if (aboveLabels[k].y - aboveLabels[k-1].y < LH) {
+        aboveLabels[k].y = aboveLabels[k-1].y + LH;
+      }
+    }
+    if (aboveLabels.length) {
+      const bottomLimit = padT + chartH - 2;
+      const overflow = aboveLabels[aboveLabels.length-1].y - bottomLimit;
+      if (overflow > 0) aboveLabels.forEach(l => l.y -= overflow);
+      const topLimit = padT + 8;
+      if (aboveLabels[0].y < topLimit) {
+        const shift = topLimit - aboveLabels[0].y;
+        aboveLabels.forEach(l => l.y += shift);
+      }
+    }
+
+    // ── Rótulos ABAIXO da linha ──
+    belowLabels.forEach(l => { l.y = l.yPoint + 18; });
+
+    // desenha chip + texto (acima e abaixo)
+    [...aboveLabels, ...belowLabels].forEach(l => {
+      const larg = ctx.measureText(l.txt).width;
+      ctx.fillStyle = 'rgba(11,17,32,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - larg/2 - 3, l.y - 9, larg + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - larg/2 - 3, l.y - 9, larg + 6, 13);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.txt, x, l.y);
+    });
+  });
+
+  // Geometria para o tooltip
+  CHART_GEO = { padL, step, n };
+  ligarTooltip();
+}
+
+// ─────────────────────────────────────────────
+// TABELA
+// ─────────────────────────────────────────────
+function renderTable() {
+  document.getElementById('tbl-body').innerHTML = DADOS.map((d, i) => `
+    <tr>
+      <td class="sprint">${d.sprint}</td>
+      <td>${d.inicio}</td>
+      <td>${d.termino}</td>
+      <td class="val-blue">${isNA(d.prevDesenv) ? 'NA' : d.prevDesenv + '%'}</td>
+      <td class="val-green">${isNA(d.realDesenv) ? 'NA' : d.realDesenv + '%'}</td>
+      <td class="val-purple">${isNA(d.prevValidado) ? 'NA' : d.prevValidado + '%'}</td>
+      <td class="val-red">${isNA(d.validado) ? 'NA' : d.validado + '%'}</td>
+      <td class="row-actions">
+        <button class="btn-row-del" onclick="editarLinha(${i})" style="margin-right:4px;background:rgba(59,130,246,.15);color:var(--blue2)">Editar</button>
+        <button class="btn-row-del" onclick="excluirLinha(${i})">Excluir</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// MODAL: INCLUIR / EDITAR
+// ─────────────────────────────────────────────
+// Máscara automática de data: preenche "abrev. dd/mm/aa" com o dia da semana
+const DIAS_SEMANA_ABBR = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+function mascaraDataSemana(input) {
+  // Mantém apenas dígitos (ddmmaa)
+  const dig = input.value.replace(/\D/g, '').slice(0, 6);
+  let out = dig;
+  if (dig.length >= 5)      out = dig.slice(0,2) + '/' + dig.slice(2,4) + '/' + dig.slice(4,6);
+  else if (dig.length >= 3) out = dig.slice(0,2) + '/' + dig.slice(2,4);
+
+  // Quando a data está completa, calcula o dia da semana
+  if (dig.length === 6) {
+    const dd = parseInt(dig.slice(0,2), 10);
+    const mm = parseInt(dig.slice(2,4), 10);
+    const aa = parseInt(dig.slice(4,6), 10);
+    const dt = new Date(2000 + aa, mm - 1, dd);
+    // valida se a data existe de fato
+    if (!isNaN(dt) && dt.getDate() === dd && dt.getMonth() === mm - 1) {
+      out = DIAS_SEMANA_ABBR[dt.getDay()] + ' ' + out;
+    }
+  }
+  input.value = out;
+}
+
+function abrirModal() {
+  editandoIndex = null;
+  document.getElementById('modal-title').textContent = 'Incluir novo Sprint';
+  document.getElementById('m-sprint').value = 'Sprint ' + (DADOS.length + 1);
+  ['m-inicio','m-termino'].forEach(id => document.getElementById(id).value = '');
+  ['m-prevDesenv','m-realDesenv','m-prevValidado','m-validado'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modal').classList.add('show');
+}
+
+function editarLinha(i) {
+  editandoIndex = i;
+  const d = DADOS[i];
+  document.getElementById('modal-title').textContent = 'Editar ' + d.sprint;
+  document.getElementById('m-sprint').value       = d.sprint;
+  document.getElementById('m-inicio').value       = d.inicio;
+  document.getElementById('m-termino').value      = d.termino;
+  document.getElementById('m-prevDesenv').value   = d.prevDesenv;
+  document.getElementById('m-realDesenv').value   = d.realDesenv;
+  document.getElementById('m-prevValidado').value = d.prevValidado;
+  document.getElementById('m-validado').value     = d.validado;
+  document.getElementById('modal').classList.add('show');
+}
+
+function fecharModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+function salvarModal() {
+  const registro = {
+    sprint:       document.getElementById('m-sprint').value.trim() || ('Sprint ' + (DADOS.length + 1)),
+    inicio:       document.getElementById('m-inicio').value.trim(),
+    termino:      document.getElementById('m-termino').value.trim(),
+    prevDesenv:   parseValor('m-prevDesenv'),
+    realDesenv:   parseValor('m-realDesenv'),
+    prevValidado: parseValor('m-prevValidado'),
+    validado:     parseValor('m-validado'),
+  };
+  if (editandoIndex === null) DADOS.push(registro);
+  else DADOS[editandoIndex] = registro;
+  salvarDados();
+  fecharModal();
+  renderTable();
+  renderChart();
+}
+
+function excluirLinha(i) {
+  if (!confirm('Excluir ' + DADOS[i].sprint + '?')) return;
+  DADOS.splice(i, 1);
+  salvarDados();
+  renderTable();
+  renderChart();
+}
+
+// ─────────────────────────────────────────────
+// EXPORTAR PDF
+// ─────────────────────────────────────────────
+function exportarPDF() {
+  window.print();
+}
+
+// ─────────────────────────────────────────────
+// MODO EDIÇÃO (mostra colunas de ação por linha)
+// ─────────────────────────────────────────────
+function toggleEdit() {
+  editMode = !editMode;
+  const btn = document.getElementById('btn-edit');
+  const hint = document.getElementById('edit-hint');
+  document.body.classList.toggle('edit-mode', editMode);
+  if (editMode) {
+    btn.textContent = '✓ Concluir edição';
+    btn.classList.add('active');
+    hint.style.display = 'block';
+  } else {
+    btn.textContent = '✎ Editar dados';
+    btn.classList.remove('active');
+    hint.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+window.onload = () => {
+  renderTable();
+  renderChart();
+};
+window.addEventListener('resize', renderChart);
+</script>
+</body>
+</html>

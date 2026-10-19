@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <!-- Sincronização com o banco (Supabase): deve ser o primeiro script da página -->
+  <script src="sync.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0b1120"/>
+  <title>Nexus · Histórico Consolidado</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b1120; --surface: #101828; --surface2: #1e293b; --card: #151f32;
+      --border: #1e2d44; --border2: #283a54;
+      --blue: #4f8ef7; --blue2: #7ab3ff;
+      --green: #2dd4a8; --yellow: #f5b731; --red: #f25c5c; --purple: #a78bfa; --orange: #fb923c;
+      --text: #edf2f7; --text2: #b0bfd0; --muted: #5f7590;
+    }
+    html { background: var(--bg); }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      font-size: 13px; line-height: 1.4; padding: 0 0 40px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .hdr {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 12px; }
+    .hdr-left img { height: 38px; width: auto; }
+    .hdr-left h1 { font-size: 18px; font-weight: 800; }
+    .hdr-left p { font-size: 12px; color: var(--muted); }
+    .btn-back {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none;
+    }
+    .btn-back:hover { border-color: var(--blue); color: var(--text); }
+
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--text2); margin-bottom: 16px;
+    }
+
+    .frente-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .frente-tab {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 18px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .frente-tab:hover { border-color: var(--blue); color: var(--text); }
+    .frente-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    .chart-wrap { position: relative; height: 400px; }
+    canvas { width: 100%; height: 100%; }
+
+    /* TOOLTIP */
+    .chart-tip {
+      display: none; position: absolute; pointer-events: none;
+      background: #0f172a; border: 1px solid var(--border2); border-radius: 10px;
+      padding: 10px 12px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55); z-index: 10; white-space: nowrap;
+    }
+    .chart-tip .tip-data { color: var(--text2); font-size: 11px; margin-bottom: 5px; }
+    .chart-tip .tip-linha { display: flex; justify-content: space-between; gap: 18px; }
+    .chart-tip .tip-linha strong { font-weight: 800; }
+    .chart-tip .tip-sep { border-top: 1px solid rgba(255,255,255,.1); margin: 5px 0; }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .leg-line { width: 20px; height: 3px; border-radius: 2px; }
+
+    .chart-note {
+      margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border);
+      font-size: 11px; font-style: italic; color: var(--purple); line-height: 1.5;
+    }
+
+    .conc-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .conc-card {
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 16px; text-align: center;
+    }
+    .conc-val { font-size: 30px; font-weight: 900; letter-spacing: -1px; line-height: 1; margin-bottom: 6px; }
+    .conc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      background: #0f172a; padding: 10px 12px; text-align: left;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border2);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    tbody td { padding: 8px 12px; color: var(--text); white-space: nowrap; }
+    tbody td.sprint { font-weight: 700; color: var(--blue2); }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .val-blue { color: var(--blue2); font-weight: 600; }
+    .val-green { color: var(--green); font-weight: 600; }
+    .val-purple { color: var(--purple); font-weight: 600; }
+    .val-red { color: var(--red); font-weight: 600; }
+    .val-yellow { color: #f5b731; font-weight: 600; }
+
+    /* ── EDIÇÃO DE LINHAS ── */
+    .tbl-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .btn-edit-dados {
+      background: transparent; border: 1px solid var(--blue); color: var(--blue);
+      padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-edit-dados:hover { background: rgba(79,142,247,.12); }
+    .btn-edit-dados.active { background: var(--blue); color: #fff; }
+    .btn-row-edit {
+      background: transparent; border: 1px solid var(--border2); color: var(--blue);
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit;
+    }
+    .btn-row-edit:hover { background: rgba(79,142,247,.12); }
+    .btn-row-reset {
+      background: rgba(167,139,250,.12); border: 1px solid rgba(167,139,250,.4); color: var(--purple);
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit;
+      margin-left: 6px;
+    }
+    .btn-row-reset:hover { background: rgba(167,139,250,.24); }
+    .col-acoes { display: none; }
+    body.edit-mode .col-acoes { display: table-cell; }
+    .edit-hint { display: none; font-size: 11px; color: var(--blue2); margin-top: 12px; }
+    body.edit-mode .edit-hint { display: block; }
+    tbody tr.row-editada td.sprint::after { content: ' •'; color: var(--purple); font-weight: 900; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      z-index: 999; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 16px; padding: 24px; width: 100%; max-width: 460px;
+    }
+    .modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .modal .modal-sub { font-size: 11px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field.full { grid-column: 1 / -1; }
+    .modal-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .modal-field input {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+      padding: 10px 12px; border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .modal-field input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+    .modal-field input[readonly] { color: var(--muted); background: rgba(0,0,0,.2); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+    .btn-cancel { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); padding: 10px 20px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-save { background: var(--green); border: none; color: #05231a; padding: 10px 22px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+    /* ── BOTÃO EXPORTAR PDF ── */
+    .btn-export-pdf {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-export-pdf:hover { border-color: var(--blue); color: var(--text); }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
+    @media print {
+      /* Paisagem: a tabela tem 12 colunas e não cabe em retrato */
+      @page { size: A4 landscape; margin: 8mm; }
+
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      html, body { background: var(--bg) !important; }
+
+      .btn-back, .btn-export-pdf, .btn-edit-dados, .col-acoes, .edit-hint { display: none !important; }
+
+      /* Cabeçalho fixo vira estático, senão pode sobrepor o conteúdo na 1ª página */
+      .hdr { position: static !important; padding: 10px 14px !important; }
+      .hdr-left img { height: 30px !important; }
+      .hdr-left h1 { font-size: 15px !important; }
+
+      /* Usa a largura total da página em vez do container centralizado de 1200px */
+      .content { max-width: none !important; padding: 8px !important; }
+      .card { break-inside: avoid; padding: 12px !important; margin-bottom: 10px !important; }
+
+      /* overflow-x: auto recorta a tabela na impressão */
+      .table-wrap { overflow: visible !important; }
+      table { font-size: 8.5px !important; }
+      thead th { padding: 4px 5px !important; font-size: 7.5px !important; }
+      tbody td { padding: 3px 5px !important; }
+
+      /* A altura do gráfico é mantida: alterá-la sem ajustar a largura na mesma
+         proporção distorceria o texto já desenhado no canvas. */
+      .legend { margin-top: 10px !important; padding-top: 10px !important; gap: 12px !important; }
+      .chart-note { margin-top: 8px !important; padding-top: 8px !important; }
+      .conc-grid { gap: 8px !important; margin-bottom: 10px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <img src="LOGO MV.png" alt="Logo"/>
+    <div>
+      <h1>Histórico Consolidado</h1>
+      <p>Central + Revenue · Evolução por Sprint</p>
+    </div>
+  </div>
+  <a class="btn-back" href="painel-nexus.html">← Voltar ao Painel</a>
+</div>
+
+<div class="content">
+
+  <div class="conc-grid" id="conc-cards"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title" style="margin-bottom:0">Evolução dos Indicadores por Sprint</div>
+      <button class="btn-export-pdf" onclick="window.print()">📄 Exportar PDF</button>
+    </div>
+    <div class="frente-tabs">
+      <button class="frente-tab active" onclick="selecionarFrente('consolidado', this)">Consolidado</button>
+      <button class="frente-tab" onclick="selecionarFrente('central', this)">Central</button>
+      <button class="frente-tab" onclick="selecionarFrente('revenue', this)">Revenue</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-tip" id="chart-tip"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <p class="chart-note">Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.</p>
+  </div>
+
+  <div class="card">
+    <div class="tbl-head">
+      <div class="card-title" id="tabela-titulo" style="margin-bottom:0">Dados Consolidados por Sprint</div>
+      <button class="btn-edit-dados" id="btn-edit-dados" onclick="toggleEdicao()">✏️ Editar dados</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sprint</th>
+            <th>Início</th>
+            <th>Término</th>
+            <th>% Prev. Desenv</th>
+            <th>% Real. Desenv</th>
+            <th>Prev. Validado (Scrum)</th>
+            <th>% Validado Real</th>
+            <th>% Prev. Geral</th>
+            <th>% Prev. Ponderado (44,10%)</th>
+            <th>% Real. Geral</th>
+            <th>% Real. Ponderado (44,10%)</th>
+            <th class="col-acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="edit-hint" id="edit-hint">Modo edição ativo — clique em <strong>Editar</strong> na linha desejada. As alterações são salvas automaticamente no servidor.</p>
+  </div>
+
+</div>
+
+<!-- MODAL EDITAR LINHA -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Editar dados do Sprint</h3>
+    <p class="modal-sub" id="modal-sub"></p>
+    <div class="modal-grid">
+      <div class="modal-field full">
+        <label>Sprint</label>
+        <input type="text" id="m-sprint" readonly/>
+      </div>
+      <div class="modal-field">
+        <label>Início</label>
+        <input type="text" id="m-ini" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>Término</label>
+        <input type="text" id="m-ter" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>% Prev. Desenv</label>
+        <input type="text" id="m-prevDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Real. Desenv</label>
+        <input type="text" id="m-realDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>Prev. Validado (Scrum)</label>
+        <input type="text" id="m-prevValid" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Validado Real</label>
+        <input type="text" id="m-valid" placeholder="0 ou NA"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-save" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY_CENTRAL = 'nexus_central_dados';
+const KEY_REVENUE = 'nexus_revenue_sprints';
+
+const CENTRAL_DEFAULT = [
+  { sprint:'Sprint 1',  ini:'qua. 07/01/26', ter:'ter. 20/01/26', prevDesenv:10, realDesenv:4,  prevValidScrum:0,  valid:0  },
+  { sprint:'Sprint 2',  ini:'qua. 21/01/26', ter:'qua. 04/02/26', prevDesenv:15, realDesenv:9,  prevValidScrum:0,  valid:0  },
+  { sprint:'Sprint 3',  ini:'qui. 05/02/26', ter:'seg. 23/02/26', prevDesenv:20, realDesenv:15, prevValidScrum:4,  valid:0  },
+  { sprint:'Sprint 4',  ini:'seg. 23/02/26', ter:'seg. 09/03/26', prevDesenv:24, realDesenv:20, prevValidScrum:9,  valid:0  },
+  { sprint:'Sprint 5',  ini:'ter. 10/03/26', ter:'ter. 24/03/26', prevDesenv:29, realDesenv:24, prevValidScrum:15, valid:0  },
+  { sprint:'Sprint 6',  ini:'qua. 25/03/26', ter:'qui. 09/04/26', prevDesenv:34, realDesenv:30, prevValidScrum:20, valid:0  },
+  { sprint:'Sprint 7',  ini:'sex. 10/04/26', ter:'seg. 27/04/26', prevDesenv:39, realDesenv:35, prevValidScrum:24, valid:0  },
+  { sprint:'Sprint 8',  ini:'ter. 28/04/26', ter:'seg. 18/05/26', prevDesenv:45, realDesenv:41, prevValidScrum:30, valid:17 },
+  { sprint:'Sprint 9',  ini:'ter. 19/05/26', ter:'ter. 02/06/26', prevDesenv:50, realDesenv:46, prevValidScrum:35, valid:17 },
+  { sprint:'Sprint 10', ini:'qua. 03/06/26', ter:'qua. 17/06/26', prevDesenv:54, realDesenv:51, prevValidScrum:41, valid:17 },
+  { sprint:'Sprint 11', ini:'qui. 18/06/26', ter:'sex. 03/07/26', prevDesenv:59, realDesenv:57, prevValidScrum:46, valid:17 },
+  { sprint:'Sprint 12', ini:'seg. 06/07/26', ter:'seg. 20/07/26', prevDesenv:64, realDesenv:62, prevValidScrum:51, valid:17 },
+  { sprint:'Sprint 13', ini:'ter. 21/07/26', ter:'ter. 04/08/26', prevDesenv:71, realDesenv:66, prevValidScrum:57, valid:17 },
+  { sprint:'Sprint 14', ini:'qua. 05/08/26', ter:'qui. 20/08/26', prevDesenv:73, realDesenv:71, prevValidScrum:62, valid:17 },
+];
+const REVENUE_DEFAULT = [
+  { sprint:'Sprint 1',  inicio:'qua. 07/01/26', termino:'ter. 20/01/26', prevDesenv:6,  realDesenv:5,  prevValidado:0,  validado:0 },
+  { sprint:'Sprint 2',  inicio:'qua. 21/01/26', termino:'qua. 04/02/26', prevDesenv:12, realDesenv:12, prevValidado:0,  validado:0 },
+  { sprint:'Sprint 3',  inicio:'qui. 05/02/26', termino:'seg. 23/02/26', prevDesenv:20, realDesenv:19, prevValidado:5,  validado:0 },
+  { sprint:'Sprint 4',  inicio:'seg. 23/02/26', termino:'seg. 09/03/26', prevDesenv:26, realDesenv:25, prevValidado:12, validado:0 },
+  { sprint:'Sprint 5',  inicio:'ter. 10/03/26', termino:'ter. 24/03/26', prevDesenv:32, realDesenv:31, prevValidado:19, validado:0 },
+  { sprint:'Sprint 6',  inicio:'qua. 25/03/26', termino:'qui. 09/04/26', prevDesenv:39, realDesenv:38, prevValidado:25, validado:0 },
+  { sprint:'Sprint 7',  inicio:'sex. 10/04/26', termino:'seg. 27/04/26', prevDesenv:46, realDesenv:45, prevValidado:31, validado:0 },
+  { sprint:'Sprint 8',  inicio:'ter. 28/04/26', termino:'seg. 18/05/26', prevDesenv:55, realDesenv:55, prevValidado:38, validado:0 },
+  { sprint:'Sprint 9',  inicio:'ter. 19/05/26', termino:'ter. 02/06/26', prevDesenv:61, realDesenv:61, prevValidado:45, validado:0 },
+  { sprint:'Sprint 10', inicio:'qua. 03/06/26', termino:'qua. 17/06/26', prevDesenv:68, realDesenv:68, prevValidado:55, validado:0 },
+  { sprint:'Sprint 11', inicio:'qui. 18/06/26', termino:'sex. 03/07/26', prevDesenv:76, realDesenv:75, prevValidado:61, validado:0 },
+  { sprint:'Sprint 12', inicio:'seg. 06/07/26', termino:'seg. 20/07/26', prevDesenv:82, realDesenv:81, prevValidado:68, validado:6 },
+  { sprint:'Sprint 13', inicio:'ter. 21/07/26', termino:'ter. 04/08/26', prevDesenv:92, realDesenv:87, prevValidado:75, validado:6 },
+  { sprint:'Sprint 14', inicio:'qua. 05/08/26', termino:'qui. 20/08/26', prevDesenv:94, realDesenv:94, prevValidado:81, validado:6 },
+];
+
+function carregar(key, def) {
+  try {
+    const s = localStorage.getItem(key);
+    if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length) return p; }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(def));
+}
+
+let CENTRAL = carregar(KEY_CENTRAL, CENTRAL_DEFAULT);
+let REVENUE = carregar(KEY_REVENUE, REVENUE_DEFAULT);
+
+function normCentral(d) {
+  return { sprint:d.sprint, ini:d.ini, ter:d.ter, prevDesenv:d.prevDesenv, realDesenv:d.realDesenv, prevValid:d.prevValidScrum, valid:d.valid };
+}
+function normRevenue(d) {
+  return { sprint:d.sprint, ini:d.inicio, ter:d.termino, prevDesenv:d.prevDesenv, realDesenv:d.realDesenv, prevValid:d.prevValidado, valid:d.validado };
+}
+let CENTRAL_N = CENTRAL.map(normCentral);
+let REVENUE_N = REVENUE.map(normRevenue);
+
+function isNA(v) {
+  return v === 'NA' || v === null || v === undefined ||
+         (typeof v === 'string' && v.trim().toUpperCase() === 'NA');
+}
+function media(a, b) {
+  const va = isNA(a) ? null : Number(a);
+  const vb = isNA(b) ? null : Number(b);
+  if (va === null && vb === null) return 'NA';
+  if (va === null) return Math.round(vb);
+  if (vb === null) return Math.round(va);
+  return Math.round((va + vb) / 2);
+}
+
+// Ajustes manuais do consolidado (por nome da sprint): sobrepõem a média Central+Revenue
+const KEY_OVERRIDE = 'nexus_consolidado_override';
+let OVERRIDES = (function () {
+  try {
+    const s = localStorage.getItem(KEY_OVERRIDE);
+    const p = s ? JSON.parse(s) : null;
+    return (p && typeof p === 'object' && !Array.isArray(p)) ? p : {};
+  } catch (e) { return {}; }
+})();
+function salvarOverrides() {
+  try { localStorage.setItem(KEY_OVERRIDE, JSON.stringify(OVERRIDES)); } catch (e) {}
+}
+
+function construirConsolidado() {
+  const linhas = [];
+  const maxLen = Math.max(CENTRAL_N.length, REVENUE_N.length);
+  for (let i = 0; i < maxLen; i++) {
+    const c = CENTRAL_N[i] || {};
+    const r = REVENUE_N[i] || {};
+    const nome = c.sprint || r.sprint || ('Sprint ' + (i + 1));
+    const base = {
+      sprint: nome,
+      ini:    c.ini || r.ini || '',
+      ter:    c.ter || r.ter || '',
+      prevDesenv: media(c.prevDesenv, r.prevDesenv),
+      realDesenv: media(c.realDesenv, r.realDesenv),
+      prevValid:  media(c.prevValid,  r.prevValid),
+      valid:      media(c.valid,      r.valid),
+    };
+    const ov = OVERRIDES[nome];
+    linhas.push(ov ? { ...base, ...ov, sprint: nome, editada: true } : base);
+  }
+  return linhas;
+}
+
+let CONSOLIDADO = construirConsolidado();
+let FONTES = { consolidado: CONSOLIDADO, central: CENTRAL_N, revenue: REVENUE_N };
+let frenteAtual = 'consolidado';
+
+// Recalcula as três fontes e redesenha tudo após uma edição
+function recarregarFontes() {
+  CENTRAL_N   = CENTRAL.map(normCentral);
+  REVENUE_N   = REVENUE.map(normRevenue);
+  CONSOLIDADO = construirConsolidado();
+  FONTES = { consolidado: CONSOLIDADO, central: CENTRAL_N, revenue: REVENUE_N };
+  renderCards();
+  renderTabela();
+  drawChart();
+}
+
+const SERIES = [
+  { key:'prevDesenv', label:'% Prev. Desenvolvimento', color:'#4f8ef7' },
+  { key:'realDesenv', label:'% Real. Desenvolvimento', color:'#2dd4a8' },
+  { key:'prevValid',  label:'Prev. Validado (Scrum)',  color:'#a78bfa' },
+  { key:'valid',      label:'% Validado Real',         color:'#f25c5c' },
+];
+
+document.getElementById('legend').innerHTML = SERIES.map(s =>
+  `<span class="leg-item"><span class="leg-line" style="background:${s.color}"></span>${s.label}</span>`
+).join('');
+
+// Converte data "qua. 07/01/26" ou "07/01/26" em Date
+function parseSprintData(str) {
+  if (!str) return null;
+  const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+  if (!m) return null;
+  let [, dd, mm, yy] = m;
+  const ano = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10);
+  return new Date(ano, parseInt(mm, 10) - 1, parseInt(dd, 10));
+}
+
+// Índice da sprint vigente conforme data de hoje (última sprint já iniciada)
+function indiceSprintVigente(dados) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  let idx = -1;
+  for (let i = 0; i < dados.length; i++) {
+    const ini = parseSprintData(dados[i].ini);
+    if (ini && ini <= hoje) idx = i;
+  }
+  if (idx === -1) idx = dados.length - 1;
+  return idx;
+}
+
+function renderCards() {
+  const dados = FONTES[frenteAtual];
+  if (!dados.length) return;
+  const ult = dados[indiceSprintVigente(dados)] || {};
+  const nz = v => isNA(v) ? 0 : (v ?? 0);
+  const realD = nz(ult.realDesenv), prevD = nz(ult.prevDesenv);
+  const realV = nz(ult.valid),      prevV = nz(ult.prevValid);
+  document.getElementById('conc-cards').innerHTML = '';
+}
+
+function renderTabela() {
+  const dados = FONTES[frenteAtual];
+  const nomes = { consolidado:'Dados Consolidados por Sprint', central:'Dados Central por Sprint', revenue:'Dados Revenue por Sprint' };
+  document.getElementById('tabela-titulo').textContent = nomes[frenteAtual];
+  document.getElementById('tbody').innerHTML = dados.map((d, i) => {
+    const prevGeral = media(d.prevDesenv, d.prevValid);
+    const realGeral = media(d.realDesenv, d.valid);
+    const prevPonderado = isNA(prevGeral) ? 'NA' : (prevGeral * 0.441).toFixed(1) + '%';
+    const realPonderado = isNA(realGeral) ? 'NA' : (realGeral * 0.441).toFixed(1) + '%';
+    const acoes = `<button class="btn-row-edit" onclick="abrirEdicao(${i})">✏️ Editar</button>` +
+      (d.editada ? `<button class="btn-row-reset" onclick="restaurarMedia(${i})" title="Voltar para a média Central+Revenue">↺ Média</button>` : '');
+    return `
+    <tr class="${d.editada ? 'row-editada' : ''}">
+      <td class="sprint">${d.sprint}</td>
+      <td>${d.ini || '–'}</td>
+      <td>${d.ter || '–'}</td>
+      <td class="num val-blue">${isNA(d.prevDesenv) ? 'NA' : d.prevDesenv + '%'}</td>
+      <td class="num val-green">${isNA(d.realDesenv) ? 'NA' : d.realDesenv + '%'}</td>
+      <td class="num val-purple">${isNA(d.prevValid) ? 'NA' : d.prevValid + '%'}</td>
+      <td class="num val-red">${isNA(d.valid) ? 'NA' : d.valid + '%'}</td>
+      <td class="num val-blue" style="font-weight:800">${isNA(prevGeral) ? 'NA' : prevGeral + '%'}</td>
+      <td class="num val-yellow" style="font-weight:800">${prevPonderado}</td>
+      <td class="num val-green" style="font-weight:800">${isNA(realGeral) ? 'NA' : realGeral + '%'}</td>
+      <td class="num val-yellow" style="font-weight:800">${realPonderado}</td>
+      <td class="col-acoes">${acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// EDIÇÃO DE LINHAS
+// ─────────────────────────────────────────────
+let editIndex = null;
+
+function toggleEdicao() {
+  const on = document.body.classList.toggle('edit-mode');
+  const btn = document.getElementById('btn-edit-dados');
+  btn.classList.toggle('active', on);
+  btn.textContent = on ? '✓ Concluir edição' : '✏️ Editar dados';
+}
+
+// Converte o valor de um input: vazio => 0, "NA" => 'NA', senão número
+function parseValor(id) {
+  const raw = (document.getElementById(id).value || '').trim();
+  if (raw === '') return 0;
+  if (raw.toUpperCase() === 'NA') return 'NA';
+  const n = parseFloat(raw.replace(',', '.'));
+  return isNaN(n) ? 'NA' : n;
+}
+
+// Máscara de data: "dd/mm/aa" com o dia da semana à frente
+const DIAS_SEMANA_ABBR = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+function mascaraDataSemana(input) {
+  const dig = input.value.replace(/\D/g, '').slice(0, 6);
+  let out = dig;
+  if (dig.length >= 5)      out = dig.slice(0,2) + '/' + dig.slice(2,4) + '/' + dig.slice(4,6);
+  else if (dig.length >= 3) out = dig.slice(0,2) + '/' + dig.slice(2,4);
+  if (dig.length === 6) {
+    const dd = parseInt(dig.slice(0,2), 10);
+    const mm = parseInt(dig.slice(2,4), 10);
+    const aa = parseInt(dig.slice(4,6), 10);
+    const dt = new Date(2000 + aa, mm - 1, dd);
+    if (!isNaN(dt) && dt.getDate() === dd && dt.getMonth() === mm - 1) {
+      out = DIAS_SEMANA_ABBR[dt.getDay()] + ' ' + out;
+    }
+  }
+  input.value = out;
+}
+
+const LEGENDA_DESTINO = {
+  consolidado: 'A alteração vale apenas para o Consolidado e sobrepõe a média Central+Revenue desta sprint.',
+  central:     'A alteração é gravada na frente <strong>Central</strong> e reflete no Consolidado e no gráfico da Central.',
+  revenue:     'A alteração é gravada na frente <strong>Revenue</strong> e reflete no Consolidado e no gráfico da Revenue.',
+};
+
+function abrirEdicao(i) {
+  const d = FONTES[frenteAtual][i];
+  if (!d) return;
+  editIndex = i;
+  document.getElementById('m-sprint').value     = d.sprint || '';
+  document.getElementById('m-ini').value        = d.ini || '';
+  document.getElementById('m-ter').value        = d.ter || '';
+  document.getElementById('m-prevDesenv').value = d.prevDesenv ?? '';
+  document.getElementById('m-realDesenv').value = d.realDesenv ?? '';
+  document.getElementById('m-prevValid').value  = d.prevValid ?? '';
+  document.getElementById('m-valid').value      = d.valid ?? '';
+  document.getElementById('modal-sub').innerHTML = LEGENDA_DESTINO[frenteAtual];
+  document.getElementById('modal').classList.add('show');
+}
+
+function fecharModal() {
+  document.getElementById('modal').classList.remove('show');
+  editIndex = null;
+}
+
+function salvarEdicao() {
+  if (editIndex === null) return;
+  const i = editIndex;
+  const vals = {
+    ini:        document.getElementById('m-ini').value.trim(),
+    ter:        document.getElementById('m-ter').value.trim(),
+    prevDesenv: parseValor('m-prevDesenv'),
+    realDesenv: parseValor('m-realDesenv'),
+    prevValid:  parseValor('m-prevValid'),
+    valid:      parseValor('m-valid'),
+  };
+
+  if (frenteAtual === 'central') {
+    CENTRAL[i] = { ...(CENTRAL[i] || {}),
+      sprint: document.getElementById('m-sprint').value.trim() || ('Sprint ' + (i + 1)),
+      ini: vals.ini, ter: vals.ter,
+      prevDesenv: vals.prevDesenv, realDesenv: vals.realDesenv,
+      prevValidScrum: vals.prevValid, valid: vals.valid };
+    try { localStorage.setItem(KEY_CENTRAL, JSON.stringify(CENTRAL)); } catch (e) {}
+  } else if (frenteAtual === 'revenue') {
+    REVENUE[i] = { ...(REVENUE[i] || {}),
+      sprint: document.getElementById('m-sprint').value.trim() || ('Sprint ' + (i + 1)),
+      inicio: vals.ini, termino: vals.ter,
+      prevDesenv: vals.prevDesenv, realDesenv: vals.realDesenv,
+      prevValidado: vals.prevValid, validado: vals.valid };
+    try { localStorage.setItem(KEY_REVENUE, JSON.stringify(REVENUE)); } catch (e) {}
+  } else {
+    const nome = CONSOLIDADO[i]?.sprint || ('Sprint ' + (i + 1));
+    OVERRIDES[nome] = vals;
+    salvarOverrides();
+  }
+
+  fecharModal();
+  recarregarFontes();
+}
+
+// Remove o ajuste manual e volta a usar a média Central+Revenue
+function restaurarMedia(i) {
+  const nome = CONSOLIDADO[i]?.sprint;
+  if (!nome || !OVERRIDES[nome]) return;
+  if (!confirm('Voltar "' + nome + '" para a média entre Central e Revenue?')) return;
+  delete OVERRIDES[nome];
+  salvarOverrides();
+  recarregarFontes();
+}
+
+// ─────────────────────────────────────────────
+// TOOLTIP (previsto x realizado ao passar o mouse)
+// ─────────────────────────────────────────────
+let CHART_GEO = null;
+let TOOLTIP_LIGADO = false;
+
+function ligarTooltip() {
+  if (TOOLTIP_LIGADO) return;
+  const canvas = document.getElementById('chart');
+  const tip = document.getElementById('chart-tip');
+  if (!canvas || !tip) return;
+  TOOLTIP_LIGADO = true;
+
+  const fmt = v => isNA(v) ? 'NA' : v + '%';
+  const dv = (r, p) => (isNA(r) || isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#5f7590'
+    : d >= -5 ? '#2dd4a8' : d >= -10 ? '#f5b731' : d >= -15 ? '#f25c5c' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="tip-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CHART_GEO) return;
+    const r = canvas.getBoundingClientRect();
+    const mx = ev.clientX - r.left;
+    const { padL, step, n } = CHART_GEO;
+
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = FONTES[frenteAtual][idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.ter).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dv(d.realDesenv, d.prevDesenv);
+    const devVal = dv(d.valid, d.prevValid);
+    // Geral = média entre desenvolvimento e validação (mesma regra da tabela)
+    const prevGeral = media(d.prevDesenv, d.prevValid);
+    const realGeral = media(d.realDesenv, d.valid);
+    const devGeral = dv(realGeral, prevGeral);
+
+    tip.innerHTML =
+      `<div class="tip-data">${d.sprint} · ${dataCurta}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#4f8ef7') +
+      linha('Realizado', fmt(d.realDesenv), '#2dd4a8') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="tip-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValid), '#a78bfa') +
+      linha('Validado Real', fmt(d.valid), '#f25c5c') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal)) +
+      `<div class="tip-sep"></div>` +
+      linha('Prev. Geral', fmt(prevGeral), '#7ab3ff') +
+      linha('Real. Geral', fmt(realGeral), '#2dd4a8') +
+      linha('Desvio Geral', devGeral === null ? '–' : (devGeral >= 0 ? '+' : '') + devGeral + ' p.p.', corDev(devGeral));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = (padL + step * idx) + 14;
+    if (left + tw > r.width) left = (padL + step * idx) - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+function drawChart() {
+  const dados = FONTES[frenteAtual];
+  const canvas = document.getElementById('chart');
+  const wrap = canvas.parentElement.getBoundingClientRect();
+  canvas.width = wrap.width;
+  canvas.height = wrap.height;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const padL = 44, padR = 20, padT = 24, padB = 44;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = dados.length;
+  const step = n > 1 ? chartW / (n - 1) : chartW;
+  const maxVal = 100;
+
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.font = '10px Inter, sans-serif';
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#5f7590'; ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  dados.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b0bfd0'; ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.fillText(d.sprint.replace('Sprint ', 'S'), x, H - 24);
+    const dt = (String(d.ter).match(/\d{2}\/\d{2}\/\d{2}/) || [''])[0];
+    ctx.fillStyle = '#5f7590'; ctx.font = '9px Inter, sans-serif';
+    ctx.fillText(dt, x, H - 10);
+  });
+
+  function parseData(str) {
+    const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+    if (!m) return null;
+    let ano = parseInt(m[3], 10); if (ano < 100) ano += 2000;
+    return new Date(ano, parseInt(m[2],10) - 1, parseInt(m[1],10));
+  }
+  const hoje = new Date();
+  const datas = dados.map(d => parseData(d.ter));
+  let posHoje = null;
+  if (datas[0] && hoje <= datas[0]) posHoje = 0;
+  else if (datas[n-1] && hoje >= datas[n-1]) posHoje = n - 1;
+  else {
+    for (let i = 0; i < n - 1; i++) {
+      if (datas[i] && datas[i+1] && hoje >= datas[i] && hoje <= datas[i+1]) {
+        posHoje = i + (hoje - datas[i]) / (datas[i+1] - datas[i]); break;
+      }
+    }
+  }
+  if (posHoje !== null) {
+    const x = padL + step * posHoje;
+    ctx.save();
+    ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + chartH); ctx.stroke();
+    ctx.restore();
+    const dd = String(hoje.getDate()).padStart(2,'0');
+    const mm = String(hoje.getMonth()+1).padStart(2,'0');
+    const rot = 'ESTAMOS AQUI · ' + dd + '/' + mm + '/' + String(hoje.getFullYear()).slice(2);
+    ctx.font = 'bold 10px Inter, sans-serif'; ctx.textAlign = 'center';
+    const lw = ctx.measureText(rot).width;
+    let bx = x;
+    if (bx - lw/2 - 6 < padL) bx = padL + lw/2 + 6;
+    if (bx + lw/2 + 6 > W - padR) bx = W - padR - lw/2 - 6;
+    ctx.fillStyle = '#f43f5e';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - lw/2 - 6, padT - 16, lw + 12, 15, 4); ctx.fill(); }
+    else ctx.fillRect(bx - lw/2 - 6, padT - 16, lw + 12, 15);
+    ctx.fillStyle = '#fff'; ctx.fillText(rot, bx, padT - 5);
+  }
+
+  SERIES.forEach(s => {
+    const vals = dados.map(d => d[s.key]);
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    vals.forEach((v, i) => {
+      if (isNA(v)) { iniciado = false; return; }
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    vals.forEach((v, i) => {
+      if (isNA(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      // ponto
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+      // rótulo com valor
+      const txt = v + '%';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const lw = ctx.measureText(txt).width;
+      // Prev. Validado desce a partir da Sprint 8 (índice 7) p/ evitar sobreposição
+      const abaixo = (s.key === 'prevValid' && i >= 7);
+      const ly = abaixo ? y + 20 : y - 10;
+      ctx.fillStyle = 'rgba(11,17,32,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - lw/2 - 3, ly - 10, lw + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - lw/2 - 3, ly - 10, lw + 6, 13);
+      ctx.fillStyle = s.color;
+      ctx.fillText(txt, x, ly);
+    });
+  });
+
+  // Geometria para o tooltip
+  CHART_GEO = { padL, step, n };
+  ligarTooltip();
+}
+
+function selecionarFrente(frente, btn) {
+  frenteAtual = frente;
+  document.querySelectorAll('.frente-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+  renderTabela();
+  drawChart();
+}
+
+renderCards();
+renderTabela();
+window.addEventListener('load', drawChart);
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>

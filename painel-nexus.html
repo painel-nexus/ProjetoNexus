@@ -1,0 +1,3312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <!-- Sincronização com o banco (Supabase): deve ser o primeiro script da página -->
+  <script src="sync.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Projeto Nexus – Painel Executivo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0b0f1a; --surface: #111827; --surface2: #1e293b;
+      --border: #1e293b; --border2: #243044;
+      --blue: #3b82f6; --blue2: #60a5fa;
+      --green: #22c55e; --yellow: #eab308; --red: #ef4444;
+      --text: #e2e8f0; --muted: #64748b; --muted2: #94a3b8;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 12px; line-height: 1.4; }
+
+    /* ADMIN LINK */
+    #admin-bar {
+      position: fixed; top: 10px; right: 14px; z-index: 9999;
+      display: flex; gap: 8px;
+    }
+    .btn-admin { background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2); padding: 6px 14px; border-radius: 5px; font-size: 12px; cursor: pointer; text-decoration: none; }
+    .btn-admin:hover { color: var(--text); border-color: var(--blue); }
+    .btn-hist-link { transition: border-color .15s, background .15s; }
+    .btn-hist-link:hover { border-color: var(--blue) !important; background: #16233b !important; }
+
+    /* HEADER */
+    .hdr { display: flex; align-items: stretch; background: var(--surface); border-bottom: 1px solid var(--border); min-height: 64px; position: sticky; top: 0; z-index: 500; }
+    .hdr-logo { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-right: 1px solid var(--border); min-width: 170px; }
+    .hdr-logo-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .hdr-logo-text small { display: block; font-size: 9px; letter-spacing: 2px; color: var(--muted2); text-transform: uppercase; }
+    .hdr-logo-text strong { font-size: 22px; font-weight: 900; color: var(--text); letter-spacing: 1px; }
+    .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; border-right: 1px solid var(--border); }
+    .hdr-title h1 { font-size: 20px; font-weight: 800; }
+    .hdr-title p { font-size: 12px; color: var(--muted2); }
+    .hdr-date { display: flex; align-items: center; padding: 12px 18px; }
+    .hdr-date-box { border: 1px solid var(--border2); border-radius: 6px; padding: 8px 14px; text-align: center; }
+    .hdr-date-box .dl { font-size: 10px; color: var(--muted2); }
+    .hdr-date-box .dv { font-size: 14px; font-weight: 700; color: var(--blue2); }
+
+    /* KPI */
+    .kpi-row { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); }
+    .kpi-card { padding: 14px 16px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+    .kpi-card:last-child { border-right: none; }
+    .kpi-top { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+    .kpi-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+    .ki-blue   { background: rgba(59,130,246,.15); color: var(--blue2); }
+    .ki-green  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .ki-red    { background: rgba(239,68,68,.15);  color: var(--red); }
+    .ki-yellow { background: rgba(234,179,8,.15);  color: var(--yellow); }
+    .ki-purple { background: rgba(168,85,247,.15); color: #c084fc; }
+    .kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .kpi-value { font-size: 26px; font-weight: 800; line-height: 1; }
+    .kv-blue   { color: var(--blue2); }
+    .kv-green  { color: var(--green); }
+    .kv-red    { color: var(--red); }
+    .kv-yellow { color: var(--yellow); }
+    .kv-purple { color: #c084fc; }
+    .kpi-sub   { font-size: 10px; color: var(--muted2); }
+
+    /* TWO COL */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+    .panel { padding: 14px 16px; border-right: 1px solid var(--border); }
+    .panel:last-child { border-right: none; }
+    .panel-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted2); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .pt-legend { display: flex; gap: 10px; font-size: 9px; font-weight: 400; color: var(--muted); margin-left: auto; }
+    .pt-leg { display: flex; align-items: center; gap: 4px; }
+    .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .leg-blue  { background: var(--blue); }
+    .leg-green { background: var(--green); }
+
+    /* CRONOGRAMA GERAL */
+    .cronograma-panel { min-width: 0; }
+    .cronograma-panel .panel-title { color: var(--muted2); font-size: 10px; letter-spacing: 1.5px; }
+    .tl-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 2px 0 4px; }
+    .tl-meta-item { text-align: center; min-width: 0; }
+    .tml { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .tmv { margin-top: 2px; font-size: 14px; font-weight: 800; color: var(--blue2); white-space: nowrap; }
+    .tmv.white { color: var(--text); }
+    /* ── TIMELINE HORIZONTAL — rótulos alternados p/ não sobrepor ── */
+    .cronograma-track-wrap { position: relative; padding: 64px 4px 60px; margin-top: 6px; }
+    .cronograma-track { position: relative; height: 6px; }
+    .tl-line { position: absolute; inset: 0; background: var(--border2); border-radius: 3px; }
+    .tl-progress { position: absolute; top: 0; left: 0; height: 100%; width: 0; background: linear-gradient(90deg, #2563eb, var(--blue2)); border-radius: 3px; transition: width .35s ease; }
+    .cronograma-milestones { position: absolute; inset: 0; }
+    .cronograma-milestone { position: absolute; top: 3px; width: 0; }
+
+    .tl-dot { position: absolute; top: -7px; left: -7px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--surface); box-sizing: border-box; z-index: 2; }
+    .tdot-past   { background: var(--green); }
+    .tdot-now    { background: var(--yellow); box-shadow: 0 0 0 4px rgba(234,179,8,.20); }
+    .tdot-future { background: #64748b; }
+
+    /* Haste ligando o ponto ao rótulo */
+    .tl-stem { position: absolute; left: -1px; width: 2px; background: var(--border2); z-index: 1; }
+    .tl-stem.up   { top: -30px; height: 26px; }
+    .tl-stem.down { top: 8px;   height: 26px; }
+    .is-past .tl-stem { background: rgba(34,197,94,.35); }
+    .is-now  .tl-stem { background: rgba(234,179,8,.55); }
+
+    .tl-label { position: absolute; left: 0; width: 118px; transform: translateX(-50%); text-align: center; }
+    .tl-label.up   { top: -56px; }
+    .tl-label.down { top: 34px; }
+    .tl-label.edge-left  { transform: translateX(-14px); text-align: left; }
+    .tl-label.edge-right { transform: translateX(calc(-100% + 14px)); text-align: right; }
+    .tl-date { display: block; font-size: 11px; font-weight: 800; color: var(--muted2); white-space: nowrap; }
+    .tl-desc { display: block; margin-top: 1px; font-size: 9.5px; color: var(--muted); line-height: 1.25; }
+    .is-past .tl-date { color: var(--green); }
+    .is-now  .tl-date, .is-now .tl-desc { color: var(--yellow); font-weight: 800; }
+
+    .tl-chip { display: inline-block; margin-top: 3px; font-size: 8px; font-weight: 900; letter-spacing: .5px; background: var(--yellow); color: #111827; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+    /* Réguas de início e fim */
+    .cronograma-ends { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 4px; }
+
+    /* DISTRIBUIÇÃO DO PROJETO POR FASE (peso) */
+    .peso-total { margin-top: 7px; text-align: right; font-size: 10px; font-weight: 800; letter-spacing: .5px; }
+    .peso-labels { display: flex; width: 100%; margin-bottom: 6px; }
+    .peso-lab {
+      text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding: 0 3px; min-width: 0;
+    }
+    .peso-bar { display: flex; width: 100%; height: 20px; border-radius: 4px; overflow: hidden; background: var(--border2); }
+    .peso-seg {
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; transition: filter .15s; min-width: 0;
+    }
+    .peso-seg:hover { filter: brightness(1.14); }
+    .peso-seg + .peso-seg { box-shadow: inset 1px 0 0 rgba(11,15,26,.45); }
+    .peso-seg .ps-pct { font-size: 9.5px; font-weight: 900; line-height: 1; letter-spacing: -.2px; }
+
+    @media (max-width: 860px) {
+      .peso-lab { font-size: 10px; }
+      .peso-bar { height: 18px; }
+      .peso-seg .ps-pct { font-size: 8.5px; }
+    }
+
+    @media (max-width: 760px) {
+      .cronograma-row { grid-template-columns: 1fr; }
+      .cronograma-row .cronograma-panel { border-right: none; }
+      .cronograma-panel .panel-title { font-size: 10px; color: var(--muted2); letter-spacing: 1.5px; }
+      .tmv { font-size: 13px; }
+    }
+
+    /* DESTAQUES */
+    .dest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dest-card { background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 10px 12px; }
+    .dest-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+    .dest-icon { width: 28px; height: 28px; border-radius: 5px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .di-dev { background: rgba(59,130,246,.15); color: var(--blue2); }
+    .di-uat { background: rgba(34,197,94,.12);  color: var(--green); }
+    .dest-title { font-size: 11px; color: var(--text); line-height: 1.3; }
+    .dest-values { display: flex; gap: 16px; align-items: flex-end; }
+    .dest-val { display: flex; flex-direction: column; gap: 2px; }
+    .dest-pct { font-size: 22px; font-weight: 800; line-height: 1; }
+    .dp-blue   { color: var(--blue2); }
+    .dp-green  { color: var(--green); }
+    .dp-red    { color: var(--red); }
+    .dp-yellow { color: var(--yellow); }
+    .dest-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .dest-desvio {
+      margin-left: auto; align-self: flex-end;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 5px;
+      white-space: nowrap;
+    }
+    .dest-desvio.neg-ok    { background: rgba(34,197,94,.12);  color: var(--green); }
+    .dest-desvio.neg-risco { background: rgba(234,179,8,.12);  color: var(--yellow); }
+    .dest-desvio.neg-atr   { background: rgba(239,68,68,.12);  color: var(--red); }
+    .dest-desvio.neg-muito { background: rgba(168,85,247,.12); color: #c084fc; }
+    .dest-desvio.pos       { background: rgba(34,197,94,.12);  color: var(--green); }
+    .dest-desvio.zer       { background: rgba(100,116,139,.12); color: var(--muted2); }
+
+    /* RESUMO */
+    .resumo-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .resumo-list li { display: flex; gap: 8px; font-size: 13px; color: var(--muted2); line-height: 1.5; }
+    .resumo-list li .ri { flex-shrink: 0; margin-top: 1px; font-size: 14px; }
+
+    /* TABLE */
+    .tbl-section { border-bottom: 1px solid var(--border); }
+    .tbl-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted2); padding: 10px 14px 8px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; }
+    .tbl-acoes { margin-left: auto; display: flex; gap: 6px; }
+    .tbl-btn { background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2);
+      padding: 4px 10px; border-radius: 5px; font-size: 9px; font-weight: 700; cursor: pointer;
+      text-transform: uppercase; letter-spacing: .5px; font-family: inherit; white-space: nowrap; }
+    .tbl-btn:hover { color: var(--text); border-color: var(--blue); }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    thead th { background: #0f172a; padding: 8px 10px; text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    tbody tr.row-frente { background: rgba(30,41,59,.5); }
+    tbody tr.row-sub2   { background: rgba(15,23,42,.4); }
+    tbody td { padding: 6px 10px; color: var(--text); vertical-align: middle; }
+    .td-icon { width: 18px; height: 18px; border-radius: 3px; background: rgba(59,130,246,.1); color: var(--blue2); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-right: 5px; vertical-align: middle; }
+    .indent1 { padding-left: 24px !important; }
+    .indent2 { padding-left: 38px !important; }
+    .tb-bar { display: flex; flex-direction: column; gap: 2px; min-width: 60px; }
+    .tb-track { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+    .tb-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+    .tbf-blue  { background: var(--blue); }
+    .tbf-green { background: var(--green); }
+    .tbf-warn  { background: var(--red); }
+    .tb-pct { font-size: 10px; color: var(--muted2); font-weight: 600; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .b-ok     { background: rgba(34,197,94,.12);  color: var(--green); }
+    .b-risco  { background: rgba(234,179,8,.12);  color: var(--yellow); }
+    .b-atraso { background: rgba(239,68,68,.12);  color: var(--red); }
+    .b-muito  { background: rgba(168,85,247,.12); color: #c084fc; }
+    .bdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .bd-ok    { background: var(--green); }
+    .bd-risco { background: var(--yellow); }
+    .bd-atr   { background: var(--red); }
+    .bd-muito { background: #c084fc; }
+
+    /* GRÁFICOS POR SPRINT embutidos (Central e Revenue) — estilos compartilhados
+       com prefixo sp- para não colidir com a tabela e o tooltip do painel. */
+    /* Título dos blocos de gráfico 1px maior que o padrão do painel (10px) */
+    #sec-central .panel-title,
+    #sec-revenue .panel-title { font-size: 11px; }
+    .sp-link { margin-left: auto; font-size: 9px; font-weight: 600; color: var(--blue2);
+      text-decoration: none; text-transform: none; letter-spacing: 0; }
+    .sp-link:hover { text-decoration: underline; }
+    /* O gráfico ocupa toda a largura do painel, sem limite nem margem: é o que
+       deixa ele justificado na página. A altura vem da proporção do canvas
+       (1000x250, igual nos três gráficos) e acompanha a largura na mesma escala,
+       então o desenho nunca distorce e a forma é idêntica na tela e no papel. */
+    .sp-chart-wrap, #chart-container { position: relative; }
+    .sp-chart-wrap canvas,
+    #chart-container canvas { display: block; width: 100%; height: auto; }
+    .sp-tip { display: none; position: absolute; pointer-events: none;
+      background: #0f172a; border: 1px solid var(--border2); border-radius: 8px;
+      padding: 9px 11px; font-size: 11px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55); z-index: 10; white-space: nowrap; }
+    .sp-tip .rt-data { color: var(--muted2); font-size: 10px; margin-bottom: 5px; }
+    .sp-tip .rt-linha { display: flex; justify-content: space-between; gap: 18px; }
+    .sp-tip .rt-linha strong { font-weight: 800; }
+    .sp-tip .rt-sep { border-top: 1px solid rgba(255,255,255,.1); margin: 5px 0; }
+    /* Legenda espelhada das telas dedicadas — que têm medidas diferentes entre si.
+       Base = Central (.legend/.leg-item/.leg-line): traço 20x3, separada do
+       gráfico por uma linha sólida, mas com fonte 10px em vez dos 12px da tela
+       dedicada. O modificador -rev aplica as do Revenue (.chart-legend/.cl-dot):
+       11px, traço 14x4, sem separador. */
+    /* Legenda igual nos dois gráficos. O espaçamento é menor que o das telas
+       dedicadas (20px de margem + 16px de padding): ali o gráfico é a página
+       inteira e pode respirar, aqui cada bloco é uma seção entre outras oito. */
+    .sp-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+      font-size: 10px; color: var(--muted2);
+      margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--border); }
+    .sp-li { display: flex; align-items: center; gap: 6px; }
+    .sp-dot { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+    .sp-premissa { margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border2);
+      font-size: 12px; font-style: italic; color: #a78bfa; line-height: 1.45; }
+    .sp-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .sp-tbl thead th { background: #0f172a; padding: 7px 9px; text-align: left;
+      font-size: 9px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted);
+      font-weight: 600; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+    .sp-tbl tbody tr { border-bottom: 1px solid var(--border); }
+    .sp-tbl tbody td { padding: 6px 9px; color: var(--text); white-space: nowrap; }
+    .sp-tbl td.sp-sprint { font-weight: 700; color: var(--blue2); }
+    .sp-b { color: var(--blue2); font-weight: 600; }
+    .sp-g { color: var(--green);  font-weight: 600; }
+    .sp-p { color: #a78bfa;       font-weight: 600; }
+    .sp-r { color: #f43f5e;       font-weight: 600; }
+    .sp-nota { font-size: 10px; color: var(--muted); margin-top: 10px; }
+    .sp-toggle { display: flex; align-items: center; gap: 8px; width: 100%;
+      background: transparent; border: none; border-top: 1px solid var(--border2);
+      padding: 10px 4px; cursor: pointer; color: var(--muted2); font-size: 10px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: .5px; text-align: left; }
+    .sp-arrow { display: inline-block; transition: transform .2s; font-size: 9px; }
+
+    /* PONTOS DE ATENÇÃO / RISCOS — seção de largura total */
+    .riscos-section { border-bottom: 1px solid var(--border); }
+    .riscos-hdr { display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px 9px; border-bottom: 1px solid var(--border); }
+    .riscos-hdr .bot-title { font-size: 11.5px; letter-spacing: 1.5px; }
+    .riscos-cont { margin-left: auto; font-size: 10px; color: var(--muted); letter-spacing: .5px; }
+    .riscos-full { padding: 13px 16px; gap: 13px !important; }
+
+    /* BOTTOM */
+    .bottom-row { display: grid; grid-template-columns: 1fr; }
+    .leg-strip { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+      border-right: none; border-bottom: 1px solid var(--border); padding: 10px 16px; }
+    .leg-strip .leg-list { flex-direction: row; gap: 18px; flex-wrap: wrap; }
+    .leg-strip .leg-cap { margin-bottom: 0; }
+
+    /* Legenda embutida no quadrante de Destaques: encostada no rodapé do painel */
+    .dest-panel { display: flex; flex-direction: column; }
+    .leg-embed { margin-top: auto; padding-top: 11px; border-top: 1px solid var(--border); }
+    .leg-embed .leg-cap { display: block; margin-bottom: 7px; }
+    .leg-embed .leg-list { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
+    .bot-panel { padding: 14px 16px; border-right: 1px solid var(--border); }
+    .bot-panel:last-child { border-right: none; }
+    .bot-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .bt-warn   { color: var(--yellow); }
+    .bt-legend { color: var(--muted2); }
+    .bot-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .bot-list li { display: flex; gap: 7px; font-size: 11px; color: var(--muted2); line-height: 1.4; }
+    /* Riscos: fonte um pouco maior que os demais blocos de lista */
+    .riscos-full li { font-size: 12.5px; }
+    .risco-li { flex-direction: column; gap: 5px !important; }
+    .risco-desc { display: flex; gap: 8px; }
+    .risco-id { flex-shrink: 0; font-size: 10px; font-weight: 800; letter-spacing: .5px;
+      color: var(--yellow); background: rgba(234,179,8,.12); border: 1px solid rgba(234,179,8,.35);
+      border-radius: 4px; padding: 2px 6px; height: fit-content; margin-top: 1px; }
+    /* Tabela do plano de ação */
+    .risco-plano { margin: 3px 0 5px 12px; padding-left: 12px; border-left: 2px solid var(--border2); }
+    .plano-hdr { font-size: 9.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+      color: var(--green); margin-bottom: 5px; }
+    .plano-tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .plano-tbl th { text-align: left; font-size: 9px; font-weight: 700; letter-spacing: .5px;
+      text-transform: uppercase; color: var(--muted); padding: 4px 6px;
+      border-bottom: 1px solid var(--border2); white-space: nowrap; }
+    .plano-tbl td { padding: 5px 6px; color: var(--muted2); vertical-align: top;
+      border-bottom: 1px solid rgba(30,41,59,.6); line-height: 1.4; }
+    .plano-tbl tbody tr:last-child td { border-bottom: none; }
+    .plano-tbl .acao-n { color: var(--muted); text-align: center; width: 18px; }
+    .plano-tbl .acao-txt { color: var(--text); }
+    .plano-tbl th:nth-child(3), .plano-tbl td:nth-child(3) { width: 180px; }
+    .plano-tbl th:nth-child(4), .plano-tbl td:nth-child(4) { width: 82px; white-space: nowrap; }
+    .plano-tbl th:nth-child(5), .plano-tbl td:nth-child(5) { width: 108px; }
+    .plano-tbl th:nth-child(6), .plano-tbl td:nth-child(6) { width: 118px; }
+    .plano-tbl td.acao-atraso { color: var(--red); font-weight: 700; }
+    .risco-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 14px; }
+    .risco-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px;
+      color: var(--muted); background: rgba(255,255,255,.04);
+      border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+    .risco-tag b { color: var(--text); font-weight: 600; }
+    .risco-st { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
+      border-radius: 4px; padding: 2px 8px; white-space: nowrap; display: inline-block; }
+    .st-conc { background: rgba(34,197,94,.15);  color: var(--green);  border: 1px solid rgba(34,197,94,.35); }
+    .st-anda { background: rgba(59,130,246,.15); color: var(--blue2);  border: 1px solid rgba(59,130,246,.35); }
+    .st-agua { background: rgba(234,179,8,.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,.35); }
+    .st-plan { background: rgba(148,163,184,.12);color: var(--muted);  border: 1px solid var(--border2); }
+    /* Cancelado: vermelho apagado e texto riscado, para ler como ação descartada
+       e não como problema em aberto. */
+    .st-canc { background: rgba(239,68,68,.10);  color: #f87171;
+      border: 1px solid rgba(239,68,68,.30); text-decoration: line-through; }
+    .risco-atraso { color: var(--red) !important; }
+    .risco-atraso b { color: var(--red) !important; }
+    .leg-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .leg-list li { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted2); }
+    .leg-circle { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+    /* NO DATA */
+    .no-data-banner {
+      background: rgba(234,179,8,.08); border: 1px solid rgba(234,179,8,.3);
+      border-radius: 8px; padding: 16px 20px; margin: 20px;
+      display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--yellow);
+    }
+    .no-data-banner a { color: var(--blue2); text-decoration: underline; }
+
+    /* ═══ TOOLTIP ═══ */
+    .tip { position: relative; display: inline-flex; align-items: center; margin-left: 5px; cursor: help; }
+    .tip-icon {
+      width: 13px; height: 13px; border-radius: 50%;
+      background: var(--border2); color: var(--muted2);
+      font-size: 9px; font-weight: 700; line-height: 13px; text-align: center;
+      display: inline-block;
+    }
+    .tip-box {
+      visibility: hidden; opacity: 0;
+      position: absolute; bottom: 140%; left: 50%; transform: translateX(-50%);
+      background: #0f172a; color: var(--text2);
+      border: 1px solid var(--border2); border-radius: 8px;
+      padding: 8px 10px; width: 200px; font-size: 10px; font-weight: 400;
+      line-height: 1.4; text-transform: none; letter-spacing: normal;
+      z-index: 999; transition: opacity .15s;
+      box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    }
+    .tip-box::after {
+      content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: var(--border2);
+    }
+    .tip:hover .tip-box { visibility: visible; opacity: 1; }
+
+    /* ═══ PRINT / PDF ═══ */
+    @media print {
+      @page { size: A4 landscape; margin: 8mm; }
+
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+      html, body { background: var(--bg) !important; }
+
+      /* Controles e navegação não vão para o papel */
+      #admin-bar { display: none !important; }
+      .btn-hist-link, #sprints-toggle, #sprints-collapse { display: none !important; }
+      /* Botões de expandir/recolher são navegação, não vão para o papel */
+      .tbl-acoes { display: none !important; }
+      /* Tooltips: o JS deixa display:block inline no elemento depois de passar o
+         mouse. Sem forçar none aqui, um tooltip aberto sai impresso flutuando
+         sobre o gráfico. Vale para o gráfico principal e para Central/Revenue. */
+      #chart-tip, .tip, .sp-tip { display: none !important; }
+      /* Tabelas detalhadas ficam fora do PDF, mesmo que expandidas na tela —
+         mesma regra que já valia para o Detalhamento por Sprint. */
+      #cons-collapse, #cen-collapse, #rev-collapse,
+      #cons-toggle, #cen-toggle, #rev-toggle { display: none !important; }
+
+      /* ── PÁGINA 1: cabeçalho + KPIs + Timeline/Resumo Executivo ── */
+      .hdr { position: static; min-height: 0 !important; }
+      .hdr-logo { padding: 3px 8px !important; min-width: 0 !important; gap: 6px !important; }
+      /* O logo tem height inline de 44px, por isso o !important */
+      .hdr-logo-icon { width: 19px !important; height: 19px !important; }
+      .hdr-logo-icon img { height: 17px !important; width: auto !important; }
+      .hdr-logo-text small { font-size: 6px !important; letter-spacing: .8px !important; }
+      .hdr-logo-text strong { font-size: 11px !important; letter-spacing: .4px !important; }
+      .hdr-title { padding: 3px 8px !important; }
+      .hdr-title h1 { font-size: 11px !important; }
+      .hdr-title p, .hdr-date-box .dl { font-size: 7px !important; }
+      .hdr-date { padding: 3px 8px !important; }
+      .hdr-date-box { padding: 3px 6px !important; }
+      .hdr-date-box .dv { font-size: 9.5px !important; }
+
+      /* 5 colunas em vez de 7: menos quebra de texto e cartões mais baixos */
+      .kpi-row { grid-template-columns: repeat(5, 1fr) !important; }
+      .kpi-card { padding: 5px 8px !important; gap: 1px !important; }
+      .kpi-icon { width: 17px !important; height: 17px !important; font-size: 10px !important; }
+      .kpi-label { font-size: 7px !important; letter-spacing: .4px !important; }
+      .kpi-value { font-size: 15px !important; }
+      .kpi-sub { font-size: 7px !important; }
+
+      .panel { padding: 7px 11px !important; }
+      .panel-title { font-size: 9px !important; margin-bottom: 5px !important; }
+
+      /* ── TIMELINE + RESUMO EXECUTIVO compactados ──
+         O espaço vertical da timeline vem do padding que acomoda os rótulos
+         alternados. Reduzir a fonte dos rótulos permite reduzir esse padding
+         na mesma proporção, sem voltar a sobrepor informação. */
+      .tl-meta { gap: 6px !important; margin: 1px 0 2px !important; }
+      .tml { font-size: 7.5px !important; letter-spacing: .8px !important; }
+      .tmv { font-size: 11px !important; margin-top: 1px !important; }
+      .cronograma-track-wrap { padding: 46px 4px 44px !important; margin-top: 3px !important; }
+      .tl-label { width: 98px !important; }
+      .tl-label.up { top: -40px !important; }
+      .tl-label.down { top: 26px !important; }
+      .tl-stem.up { top: -22px !important; height: 18px !important; }
+      .tl-stem.down { top: 8px !important; height: 18px !important; }
+      .tl-date { font-size: 9px !important; }
+      .tl-desc { font-size: 8px !important; line-height: 1.2 !important; }
+      .tl-chip { font-size: 7px !important; padding: 1px 4px !important; margin-top: 2px !important; }
+      .tl-dot { width: 11px !important; height: 11px !important;
+                top: -5px !important; left: -5px !important; border-width: 2px !important; }
+      .cronograma-ends { font-size: 8px !important; margin-top: 2px !important; }
+
+      .resumo-list { gap: 5px !important; }
+      .resumo-list li { font-size: 10px !important; line-height: 1.35 !important; }
+      .resumo-list li .ri { font-size: 11px !important; margin-top: 0 !important; }
+
+      /* A Distribuição por Fase e Peso fecha a página 1, logo depois do Resumo
+         Executivo: sem quebra forçada antes dela, só a garantia de não ser
+         dividida no meio. A página 2 começa no Histórico por Sprint. */
+      #sec-peso { break-inside: avoid; }
+      #sec-peso .peso-bar { height: 17px !important; }
+      #sec-peso .peso-lab { font-size: 8.5px !important; }
+      #sec-peso .peso-seg .ps-pct { font-size: 8.5px !important; }
+      #sec-peso .peso-total { font-size: 9px !important; margin-top: 5px !important; }
+
+      /* Cada gráfico abre a própria página e nunca é dividido. O Progresso por
+         Frente / Destaques vem logo depois deste, preenchendo o resto da página
+         em vez de gerar uma folha quase vazia. */
+      #sec-historico { break-before: page; page-break-before: always; break-inside: avoid; }
+      /* Nenhum ajuste de dimensão: o canvas tem proporção fixa e escala sozinho
+         para a largura da página. Só o fundo é forçado, para o gráfico não sair
+         em branco no PDF. */
+      #chart-container { background: var(--surface) !important; }
+      #chart-historico { background: var(--surface) !important; }
+      #chart-summary { gap: 6px !important; margin-bottom: 7px !important; }
+      #chart-summary > div { padding: 5px 7px !important; min-width: 90px !important; }
+
+      /* Consolidado, Central e Revenue: uma página para cada, sem divisão */
+      #sec-consolidado, #sec-central, #sec-revenue { break-before: page;
+        page-break-before: always; break-inside: avoid; }
+      /* Nenhum ajuste de dimensão aqui: o canvas tem proporção fixa e escala
+         sozinho para a largura da página. Só o fundo é forçado, para o gráfico
+         não sair em branco no PDF. */
+      #cons-chart-container, #cen-chart-container, #rev-chart-container { background: var(--surface) !important; }
+      #cons-canvas, #cen-canvas, #rev-canvas { background: var(--surface) !important; }
+      .sp-link { display: none !important; }
+      /* O .panel-title acima é forçado a 9px !important para todo o painel; sem
+         esta exceção os títulos dos gráficos perderiam no papel o tamanho
+         definido para a tela. */
+      #sec-central .panel-title,
+      #sec-revenue .panel-title { font-size: 11px !important; }
+      /* Legenda e premissa mantêm o tamanho da tela: com a página inteira
+         disponível não há motivo para comprimir o que precisa ser lido. */
+
+      /* O Detalhamento vai completo para o PDF, com todas as frentes e
+         subfrentes abertas. O colapso é um recurso de navegação na tela; num
+         relatório impresso, linha escondida é informação perdida. */
+      #tbl-tbody tr { display: table-row !important; }
+
+      .two-col { break-inside: avoid; }
+      /* Com 25 linhas a tabela pode passar de uma página: deixamos quebrar, mas
+         nunca no meio de uma linha, e o cabeçalho se repete na página seguinte. */
+      .tbl-section { break-inside: auto; }
+      .tbl-section thead { display: table-header-group; }
+      .tbl-section tr { break-inside: avoid; }
+      .bottom-row { break-inside: avoid; }
+      /* Riscos: a seção pode quebrar entre páginas, mas nunca no meio de um
+         risco nem da sua tabela de ações. */
+      .risco-li { break-inside: avoid; }
+      .riscos-full { padding: 9px 12px !important; gap: 9px !important; }
+      .riscos-hdr { padding: 7px 12px 6px !important; }
+      .riscos-full li { font-size: 11px !important; }
+      /* Legendas compactas e nunca divididas entre páginas */
+      .leg-strip { padding: 6px 12px !important; gap: 12px !important; break-inside: avoid; }
+      .leg-strip .leg-list { gap: 12px !important; }
+      .leg-embed { padding-top: 8px !important; break-inside: avoid; }
+      .leg-list li { font-size: 9px !important; }
+      .plano-tbl { font-size: 10px !important; }
+      .plano-tbl th { font-size: 8.5px !important; }
+      .plano-tbl td { padding: 4px 5px !important; }
+      .kpi-row, .kpi-card { background: var(--surface) !important; border-color: var(--border) !important; }
+      .panel { background: var(--surface) !important; }
+      .block, .timeline-block { background: var(--surface) !important; }
+      table thead tr { background: #0f172a !important; }
+      tbody tr.row-frente { background: rgba(30,41,59,.5) !important; }
+      .badge, .dest-desvio { border: none !important; }
+      .tb-fill, .tl-progress, .tl-prog-fill, .timeline-progress, .hcb-fill, .mini-bar-fill, .hero-bar-fill, .fc-fill, .fcb-fill {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ADMIN LINK -->
+<div id="admin-bar">
+  <a class="btn-admin" href="grafico-historico-consolidado.html">📈 Histórico por Sprint</a>
+  <button class="btn-admin" onclick="window.print()">📄 Exportar PDF</button>
+  <a class="btn-admin" href="admin.html">⚙️ Incluir dados</a>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-logo-icon">
+      <img src="LOGO MV.png" alt="Logo Nexus" style="height:44px; width:auto;"/>
+    </div>
+    <div class="hdr-logo-text">
+      <small>Projeto</small>
+      <strong>NEXUS</strong>
+    </div>
+  </div>
+  <div class="hdr-title">
+    <h1>PAINEL EXECUTIVO</h1>
+    <p>Status de Execução</p>
+  </div>
+  <div class="hdr-date">
+    <div class="hdr-date-box">
+      <div class="dl">Data de referência</div>
+      <div class="dv" id="hdr-data-ref">--/--/----</div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-blue">🎯</div><span class="kpi-label">Progresso Previsto</span><span class="tip"><span class="tip-icon">i</span><span class="tip-box">Percentual acumulado do trabalho executado até a data de atualização do status.</span></span></div>
+    <div class="kpi-value kv-blue" id="kpi-previsto">--%</div>
+    <div class="kpi-sub" id="kpi-previsto-sub">–</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-green">✅</div><span class="kpi-label">Progresso Realizado</span><span class="tip"><span class="tip-icon">i</span><span class="tip-box">Percentual acumulado do trabalho efetivamente concluído até a data de referência.</span></span></div>
+    <div class="kpi-value kv-green" id="kpi-realizado">--%</div>
+    <div class="kpi-sub" id="kpi-realizado-sub">–</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-red">📉</div><span class="kpi-label">Desvio Global</span></div>
+    <div class="kpi-value kv-red" id="kpi-desvio">-- p.p.</div>
+    <div class="kpi-sub" id="kpi-desvio-sub">–</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-green">⏱️</div><span class="kpi-label">Dias Decorridos</span></div>
+    <div class="kpi-value kv-green" id="kpi-decorridos">–</div>
+    <div class="kpi-sub" id="kpi-decorridos-sub">Desde o início do projeto</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-yellow">📅</div><span class="kpi-label">Duração Total</span></div>
+    <div class="kpi-value kv-yellow" id="kpi-duracao">–</div>
+    <div class="kpi-sub" id="kpi-periodo">–</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-blue">📊</div><span class="kpi-label">Total de Frentes</span></div>
+    <div class="kpi-value kv-blue" id="kpi-total-frentes">–</div>
+    <div class="kpi-sub">Quantidade de frentes planejadas</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-purple">👥</div><span class="kpi-label">Frentes Ativas</span></div>
+    <div class="kpi-value kv-purple" id="kpi-frentes">–</div>
+    <div class="kpi-sub" id="kpi-frentes-sub">–</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-blue">🎯</div><span class="kpi-label">Progresso Previsto Operações</span></div>
+    <div class="kpi-value kv-blue" id="kpi-previsto-op">–</div>
+    <div class="kpi-sub">Previsto × 74,94%</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-green">✅</div><span class="kpi-label">Progresso Realizado Operações</span></div>
+    <div class="kpi-value kv-green" id="kpi-realizado-op">–</div>
+    <div class="kpi-sub">Realizado × 74,94%</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon ki-red">📉</div><span class="kpi-label">Desvio de Operações</span></div>
+    <div class="kpi-value kv-red" id="kpi-desvio-op">–</div>
+    <div class="kpi-sub">Previsto Op. − Realizado Op.</div>
+  </div>
+</div>
+
+<!-- TIMELINE + RESUMO EXECUTIVO -->
+<div class="two-col cronograma-row">
+  <div class="panel cronograma-panel">
+    <div class="panel-title">TIMELINE</div>
+    <div class="tl-meta cronograma-meta">
+      <div class="tl-meta-item"><div class="tml">Início</div><div class="tmv" id="tl-inicio">–</div></div>
+      <div class="tl-meta-item"><div class="tml">Duração Total</div><div class="tmv white" id="tl-duracao">–</div></div>
+      <div class="tl-meta-item"><div class="tml">Término Previsto</div><div class="tmv" id="tl-termino">–</div></div>
+    </div>
+    <div id="gantt" class="cronograma" aria-label="Linha do tempo do projeto">
+      <div class="cronograma-track-wrap">
+        <div class="cronograma-track">
+          <div class="tl-line">
+            <div id="tl-progress" class="tl-progress"></div>
+          </div>
+          <div id="tl-milestones" class="cronograma-milestones"></div>
+        </div>
+      </div>
+      <div class="cronograma-ends">
+        <span id="tl-pct">–</span>
+        <span id="tl-restante">–</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Resumo Executivo</div>
+    <ul class="resumo-list" id="resumo-list"></ul>
+  </div>
+</div>
+
+<!-- DISTRIBUIÇÃO DO PROJETO POR FASE (largura total) -->
+<div class="two-col" id="sec-peso" style="grid-template-columns:1fr">
+  <div class="panel">
+    <div class="panel-title">Distribuição do Projeto por Fase e Peso</div>
+    <div class="peso-labels" id="peso-labels"></div>
+    <div class="peso-bar" id="peso-bar"></div>
+    <div class="peso-total" id="peso-total">–</div>
+  </div>
+</div>
+
+<!-- HISTÓRICO DE PROGRESSO -->
+<div class="two-col" id="sec-historico" style="grid-template-columns:1fr">
+  <div class="panel">
+    <div class="panel-title">
+      Histórico por Sprint
+      <div class="pt-legend">
+        <span class="pt-leg"><span class="leg-dot leg-blue"></span> Previsto</span>
+        <span class="pt-leg"><span class="leg-dot leg-green"></span> Realizado</span>
+      </div>
+    </div>
+
+    <!-- Resumo rápido acima do gráfico -->
+    <div id="chart-summary" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"></div>
+
+    <div id="chart-container" style="position:relative">
+      <canvas id="chart-historico" style="display:block;width:100%;height:auto"></canvas>
+      <div id="chart-empty" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:11px">
+        Cadastre ao menos 2 registros no admin para ver o histórico
+      </div>
+      <!-- Tooltip -->
+      <div id="chart-tip" style="display:none;position:absolute;pointer-events:none;background:#0f172a;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:10;white-space:nowrap"></div>
+    </div>
+
+    <!-- Tabela de sprints (consolidado ponderado 44,10%) -->
+    <div style="margin-top:14px">
+      <button id="sprints-toggle" onclick="toggleSprints()" style="display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;border-top:1px solid var(--border2);padding:10px 4px;cursor:pointer;color:var(--muted2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:left">
+        <span id="sprints-arrow" style="display:inline-block;transition:transform .2s;font-size:9px">▶</span>
+        Detalhamento por Sprint
+      </button>
+      <div id="sprints-collapse" style="display:none;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border2);text-align:left;color:var(--muted2)">
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">Sprint</th>
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">Início</th>
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">Término</th>
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">% Prev. Ponderado</th>
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">% Real. Ponderado</th>
+              <th style="padding:8px 10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:10px">Desvio</th>
+            </tr>
+          </thead>
+          <tbody id="sprints-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Botões para abrir gráficos históricos detalhados -->
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <a href="grafico-historico-consolidado.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+        <span style="width:8px;height:8px;border-radius:2px;background:var(--blue2)"></span> Consolidado
+      </a>
+      <a href="grafico-historico-central.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+        <span style="width:8px;height:8px;border-radius:2px;background:var(--green)"></span> Central
+      </a>
+      <a href="grafico-historico-revenue.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+        <span style="width:8px;height:8px;border-radius:2px;background:var(--orange-accent,#fb923c)"></span> Revenue
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- DESTAQUES DO DESEMPENHO (largura total) -->
+<div class="two-col" style="grid-template-columns:1fr">
+  <div class="panel dest-panel">
+    <div class="panel-title">Destaques do Desempenho</div>
+    <div class="dest-grid" id="dest-grid"></div>
+    <!-- Legenda ocupa o espaço livre no rodapé do quadrante -->
+    <div class="leg-embed" id="leg-frentes"></div>
+  </div>
+</div>
+
+<!-- HISTÓRICO CONSOLIDADO (gráfico + dados detalhados colapsados) -->
+<div class="two-col" id="sec-consolidado" style="grid-template-columns:1fr">
+  <div class="panel">
+    <div class="panel-title">
+      Histórico Consolidado — Evolução dos Indicadores por Sprint
+      <a href="grafico-historico-consolidado.html" target="_blank" class="sp-link">abrir completo ↗</a>
+    </div>
+
+    <div class="sp-chart-wrap" id="cons-chart-container">
+      <canvas id="cons-canvas"></canvas>
+      <div class="sp-tip" id="cons-tip"></div>
+    </div>
+
+    <div class="sp-legend">
+      <span class="sp-li"><span class="sp-dot" style="background:#3b82f6"></span> % Prev. Desenvolvimento</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#22c55e"></span> % Real. Desenvolvimento</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#a78bfa"></span> Prev. Validado (Scrum)**</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#f43f5e"></span> % Validado Real</span>
+    </div>
+
+    <div class="sp-premissa">
+      Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.
+    </div>
+
+    <!-- Dados detalhados: começa colapsado -->
+    <div style="margin-top:14px">
+      <button id="cons-toggle" class="sp-toggle" onclick="toggleConsTabela()">
+        <span id="cons-arrow" class="sp-arrow">▶</span>
+        Consolidado — Dados Detalhados
+      </button>
+      <div id="cons-collapse" style="display:none;overflow-x:auto">
+        <table class="sp-tbl">
+          <thead>
+            <tr>
+              <th>Sprint</th>
+              <th>Início</th>
+              <th>Término</th>
+              <th>% Prev. Desenv</th>
+              <th>% Real. Desenv</th>
+              <th>Prev. Validado (Scrum)**</th>
+              <th>% Validado Real</th>
+            </tr>
+          </thead>
+          <tbody id="cons-tbody"></tbody>
+        </table>
+        <p class="sp-nota">
+          ** Previsto Validado com Estratégia Scrum Correta ·
+          Consolidado = média entre Central e Revenue por sprint ·
+          <span style="color:#a78bfa">•</span> marca sprint com ajuste manual
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTÓRICO CENTRAL (gráfico + dados detalhados colapsados) -->
+<div class="two-col" id="sec-central" style="grid-template-columns:1fr">
+  <div class="panel">
+    <div class="panel-title">
+      Histórico Central — Evolução dos Indicadores por Sprint
+      <a href="grafico-historico-central.html" target="_blank" class="sp-link">abrir completo ↗</a>
+    </div>
+
+    <div class="sp-chart-wrap" id="cen-chart-container">
+      <canvas id="cen-canvas"></canvas>
+      <div class="sp-tip" id="cen-tip"></div>
+    </div>
+
+    <div class="sp-legend">
+      <span class="sp-li"><span class="sp-dot" style="background:#3b82f6"></span> % Prev. Desenv. Central</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#22c55e"></span> % Real. Desenv. Central</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#a78bfa"></span> Prev. Validado (Scrum)**</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#f43f5e"></span> % Validado Real</span>
+    </div>
+
+    <div class="sp-premissa">
+      Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.
+    </div>
+
+    <!-- Dados detalhados: começa colapsado -->
+    <div style="margin-top:14px">
+      <button id="cen-toggle" class="sp-toggle" onclick="toggleCenTabela()">
+        <span id="cen-arrow" class="sp-arrow">▶</span>
+        Central — Dados Detalhados
+      </button>
+      <div id="cen-collapse" style="display:none;overflow-x:auto">
+        <table class="sp-tbl">
+          <thead>
+            <tr>
+              <th>Sprint</th>
+              <th>Início</th>
+              <th>Término</th>
+              <th>% Prev. Desenv</th>
+              <th>% Real. Desenv</th>
+              <th>Prev. Validado (Scrum)**</th>
+              <th>% Validado Real</th>
+            </tr>
+          </thead>
+          <tbody id="cen-tbody"></tbody>
+        </table>
+        <p class="sp-nota">** Previsto Validado Central com Estratégia Scrum Correta</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTÓRICO REVENUE (gráfico + dados detalhados colapsados) -->
+<div class="two-col" id="sec-revenue" style="grid-template-columns:1fr">
+  <div class="panel">
+    <div class="panel-title">
+      Histórico Revenue — Evolução dos Indicadores por Sprint
+      <a href="grafico-historico-revenue.html" target="_blank" class="sp-link">abrir completo ↗</a>
+    </div>
+
+    <div class="sp-chart-wrap" id="rev-chart-container">
+      <canvas id="rev-canvas"></canvas>
+      <div class="sp-tip" id="rev-tip"></div>
+    </div>
+
+    <div class="sp-legend">
+      <span class="sp-li"><span class="sp-dot" style="background:#3b82f6"></span> % Prev. Desenv. Revenue</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#22c55e"></span> % Real. Desenv. Revenue</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#a78bfa"></span> Prev. Validado (Scrum)**</span>
+      <span class="sp-li"><span class="sp-dot" style="background:#f43f5e"></span> % Validado Real</span>
+    </div>
+
+    <div class="sp-premissa">
+      Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.
+    </div>
+
+    <!-- Dados detalhados: começa colapsado -->
+    <div style="margin-top:14px">
+      <button id="rev-toggle" class="sp-toggle" onclick="toggleRevTabela()">
+        <span id="rev-arrow" class="sp-arrow">▶</span>
+        Revenue — Dados Detalhados
+      </button>
+      <div id="rev-collapse" style="display:none;overflow-x:auto">
+        <table class="sp-tbl">
+          <thead>
+            <tr>
+              <th>Sprint</th>
+              <th>Início</th>
+              <th>Término</th>
+              <th>% Prev. Desenv</th>
+              <th>% Real. Desenv</th>
+              <th>Prev. Validado (Scrum)**</th>
+              <th>% Validado Real</th>
+            </tr>
+          </thead>
+          <tbody id="rev-tbody"></tbody>
+        </table>
+        <p class="sp-nota">** Previsto Validado Revenue com Estratégia Scrum Correta</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PONTOS DE ATENÇÃO / RISCOS (largura total) -->
+<div class="riscos-section" id="sec-riscos">
+  <div class="riscos-hdr">
+    <span class="bot-title bt-warn" style="margin:0">⚠ Pontos de Atenção / Riscos</span>
+    <span class="riscos-cont" id="riscos-cont"></span>
+  </div>
+  <ul class="bot-list riscos-full" id="riscos-list"></ul>
+</div>
+
+<!-- TABELA -->
+<div class="tbl-section">
+  <div class="tbl-title">
+    <span>Detalhamento por Frentes e Atividades</span>
+    <div class="tbl-acoes">
+      <button class="tbl-btn" onclick="expandirTodasLinhas()" title="Abrir todas as frentes e atividades">▾ Expandir tudo</button>
+      <button class="tbl-btn" onclick="recolherTodasLinhas()" title="Recolher todas as frentes">▸ Recolher tudo</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Frente / Atividade</th>
+        <th>Duração</th>
+        <th>Início</th>
+        <th>Término</th>
+        <th>Previsto (%)</th>
+        <th>Realizado (%)</th>
+        <th>Desvio (p.p.)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="tbl-tbody"></tbody>
+  </table>
+</div>
+
+<!-- BOTTOM: legenda de status em faixa horizontal -->
+<div class="bottom-row">
+  <div class="bot-panel leg-strip" id="leg-rodape"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DADOS ESTÁTICOS DA TABELA (não mudam semanalmente)
+// ─────────────────────────────────────────────
+const TABELA_META_DEFAULT = [
+  { id:'desenvolvimento', label:'Desenvolvimento',                nivel:0, icon:'&#60;/&#62;', duracao:'283 dias', inicio:'Seg 15/12/25', termino:'Qua 13/01/27' },
+  { id:'central',         label:'Central de Projetos',            nivel:1, icon:'🔷',          duracao:'283 dias', inicio:'Seg 15/12/25', termino:'Qua 13/01/27' },
+  { id:'dev-central',     label:'Desenvolvimento de produto - Central', nivel:2, icon:'',             duracao:'246 dias', inicio:'Seg 15/12/25', termino:'Sex 23/11/26' },
+  { id:'uat-central',     label:'Testes e validações do usuário chave', nivel:2, icon:'',       duracao:'200 dias', inicio:'Qui 09/04/26', termino:'Qua 13/01/27' },
+  { id:'revenue',         label:'Revenue',                        nivel:1, icon:'💰',          duracao:'218 dias', inicio:'Seg 15/12/25', termino:'Qua 14/10/26' },
+  { id:'dev-revenue',     label:'Dev. de produto - Revenue',      nivel:2, icon:'',             duracao:'172 dias', inicio:'Qua 07/01/26', termino:'Qua 03/09/26' },
+  { id:'uat-revenue',     label:'Testes e validações do usuário chave', nivel:2, icon:'',       duracao:'62 dias',  inicio:'Ter 21/07/26', termino:'Qua 14/10/26' },
+  // Frentes seguintes com as mesmas duas subfrentes do Desenvolvimento. As datas
+  // aqui são só fallback: quando o registro do admin traz início e término, o
+  // render usa os do admin e recalcula a duração em dias corridos.
+  { id:'legado',          label:'Legado',                         nivel:0, icon:'🏛',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+  { id:'legado-central',  label:'Central de Projetos',            nivel:1, icon:'🔷',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+  { id:'legado-revenue',  label:'Revenue',                        nivel:1, icon:'💰',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+
+  { id:'testes-int',         label:'Testes integrados',           nivel:0, icon:'🔗',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+  { id:'testes-int-central', label:'Central de Projetos',         nivel:1, icon:'🔷',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+  { id:'testes-int-revenue', label:'Revenue',                     nivel:1, icon:'💰',          duracao:'129 dias', inicio:'Qui 15/10/26', termino:'Ter 13/04/27' },
+
+  { id:'treinamentos',         label:'Treinamentos',              nivel:0, icon:'🎓',          duracao:'96 dias',  inicio:'Ter 03/11/26', termino:'Qui 16/03/27' },
+  { id:'treinamentos-central', label:'Central de Projetos',       nivel:1, icon:'🔷',          duracao:'96 dias',  inicio:'Ter 03/11/26', termino:'Qui 16/03/27' },
+  { id:'treinamentos-revenue', label:'Revenue',                   nivel:1, icon:'💰',          duracao:'96 dias',  inicio:'Ter 03/11/26', termino:'Qui 16/03/27' },
+
+  { id:'cadastros',         label:'Cadastros e parametrizações',  nivel:0, icon:'⚙️',          duracao:'64 dias',  inicio:'Ter 03/11/26', termino:'Sex 29/01/27' },
+  { id:'cadastros-central', label:'Central de Projetos',          nivel:1, icon:'🔷',          duracao:'64 dias',  inicio:'Ter 03/11/26', termino:'Sex 29/01/27' },
+  { id:'cadastros-revenue', label:'Revenue',                      nivel:1, icon:'💰',          duracao:'64 dias',  inicio:'Ter 03/11/26', termino:'Sex 29/01/27' },
+
+  { id:'golive',         label:'Go Live',                         nivel:0, icon:'🚀',          duracao:'0 dias',   inicio:'Ter 16/03/27', termino:'Ter 16/03/27' },
+  { id:'golive-central', label:'Central de Projetos',             nivel:1, icon:'🔷',          duracao:'0 dias',   inicio:'Ter 16/03/27', termino:'Ter 16/03/27' },
+  { id:'golive-revenue', label:'Revenue',                         nivel:1, icon:'💰',          duracao:'0 dias',   inicio:'Ter 16/03/27', termino:'Ter 16/03/27' },
+
+  { id:'op-assistida',         label:'Operação assistida',        nivel:0, icon:'🛟',          duracao:'40 dias',  inicio:'Qua 17/03/27', termino:'Ter 11/05/27' },
+  { id:'op-assistida-central', label:'Central de Projetos',       nivel:1, icon:'🔷',          duracao:'40 dias',  inicio:'Qua 17/03/27', termino:'Ter 11/05/27' },
+  { id:'op-assistida-revenue', label:'Revenue',                   nivel:1, icon:'💰',          duracao:'40 dias',  inicio:'Qua 17/03/27', termino:'Ter 11/05/27' },
+];
+
+// A lista de frentes é editável no admin e fica em nexus_estrutura. Quando existe
+// estrutura salva, ela manda: é a única forma de uma frente incluída no admin
+// aparecer aqui. Os campos de exibição (ícone, datas formatadas) vêm do padrão
+// quando o id é conhecido; para linhas novas, derivamos das datas ISO salvas.
+const ESTRUTURA_KEY = 'nexus_estrutura';
+
+function carregarEstruturaTabela() {
+  let estrutura = null;
+  try {
+    const salvo = localStorage.getItem(ESTRUTURA_KEY);
+    if (salvo) {
+      const arr = JSON.parse(salvo);
+      if (Array.isArray(arr) && arr.length && arr.every(f =>
+            f && typeof f.id === 'string' && f.id &&
+            typeof f.label === 'string' && Number.isInteger(f.nivel))) {
+        estrutura = arr;
+      }
+    }
+  } catch (e) {
+    console.warn('Estrutura de frentes inválida, usando o padrão.', e);
+  }
+  if (!estrutura) return TABELA_META_DEFAULT;
+
+  const porId = {};
+  TABELA_META_DEFAULT.forEach(r => { porId[r.id] = r; });
+
+  return estrutura.map(f => {
+    const padrao = porId[f.id];
+    if (padrao) return { ...padrao, label: f.label, nivel: f.nivel };
+    // Linha criada no admin: sem ícone nem datas de referência próprias.
+    // O render recalcula a duração quando o registro traz início e término.
+    return {
+      id: f.id, label: f.label, nivel: f.nivel, icon: '',
+      duracao: '–',
+      inicio:  f.ini ? formatDateIso(f.ini) : '–',
+      termino: f.ter ? formatDateIso(f.ter) : '–',
+    };
+  });
+}
+
+const TABELA_META = carregarEstruturaTabela();
+
+const FRENTES_PAINEL = [
+  { id:'desenvolvimento', label:'Desenvolvimento (44,1%)', icon:'&#60;/&#62;' },
+  { id:'legado',          label:'Legado (12,5%)',          icon:'🏛' },
+  { id:'testes-int',      label:'Testes integrados (11%)', icon:'🔗' },
+  { id:'treinamentos',    label:'Treinamentos (8,8%)',    icon:'🎓' },
+  { id:'cadastros',       label:'Cadastros e parametrizações (6,6%)', icon:'⚙️' },
+  { id:'golive',          label:'Go Live (6,6%)',         icon:'🚀' },
+  { id:'op-assistida',    label:'Operação assistida (10,3%)', icon:'🛟' },
+];
+
+const DESTAQUES_META = [
+  { id:'dest-dev-central', label:'Desenvolvimento\nde produto Central',     icon:'&#60;/&#62;', iconClass:'di-dev' },
+  { id:'dest-uat-central', label:'Testes e validações do\nusuário chave (Central)',    icon:'✔',           iconClass:'di-uat' },
+  { id:'dest-dev-revenue', label:'Desenvolvimento\nde produto Revenue',      icon:'&#60;/&#62;', iconClass:'di-dev' },
+  { id:'dest-uat-revenue', label:'Testes e validações do\nusuário chave (Revenue)',    icon:'✔',           iconClass:'di-uat' },
+];
+
+const RESUMO_ICONS = ['📊','⚙️','⚠️','⚠️','✅'];
+
+// ─────────────────────────────────────────────
+// DADOS PADRÃO (se não houver dados salvos)
+// ─────────────────────────────────────────────
+// Usa a data local do calendário, sem conversão UTC, para evitar que o
+// navegador mostre o dia anterior em fusos horários negativos.
+function obterDataHojeISO() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+}
+
+const DEFAULTS = {
+  dataRef:   obterDataHojeISO(),
+  previsto:  '46', realizado: '31',
+  duracao:   '512 dias', inicio: '15/12/2025', termino: '11/05/2027', frentes: '9',
+  frentesData: {
+    'desenvolvimento': { previsto:'62', realizado:'61', status:'ok' },
+    'central':         { previsto:'62', realizado:'53', status:'risco' },
+    'dev-central':     { previsto:'71', realizado:'66', status:'risco' },
+    'uat-central':     { previsto:'46', realizado:'17', status:'atraso' },
+    'revenue':         { previsto:'80', realizado:'71', status:'risco' },
+    'dev-revenue':     { previsto:'92', realizado:'87', status:'risco' },
+    'uat-revenue':     { previsto:'32', realizado:'6',  status:'atraso' },
+    'legado':          { previsto:'0',  realizado:'0',  status:'ok' },
+    'testes-int':      { previsto:'0',  realizado:'0',  status:'ok' },
+    'treinamentos':    { previsto:'0',  realizado:'0',  status:'ok' },
+    'cadastros':       { previsto:'0',  realizado:'0',  status:'ok' },
+    'golive':          { previsto:'0',  realizado:'0',  status:'ok' },
+    'op-assistida':    { previsto:'0',  realizado:'0',  status:'ok' },
+  },
+  destaquesData: {
+    'dest-dev-central': { previsto:'71', realizado:'62' },
+    'dest-uat-central': { previsto:'51', realizado:'17' },
+    'dest-dev-revenue': { previsto:'92', realizado:'83' },
+    'dest-uat-revenue': { previsto:'36', realizado:'6'  },
+  },
+  resumo: [
+    'A frente de Desenvolvimento, que responde por 44,1% do projeto e está no escopo do fornecedor, apresenta progresso global de 24%, com desvio de 16 p.p. em relação ao previsto (40%).',
+    'As validações registraram a melhor evolução do período: o Consolidado passou de 12% para 27%, com ritmo de 3,8 p.p. por sprint nas últimas quatro sprints, contra 1,7 p.p. na média histórica.',
+    'O principal fator do atraso nos testes foi o represamento das entregas do fornecedor: a validação do Revenue permaneceu em 0% por 11 sprints (181 dias) e a da Central por 6 sprints (97 dias), o que impediu a homologação pelas áreas de negócio no ritmo planejado.',
+    'O desenvolvimento da Central foi reajustado de 85% para 70% no Sprint 17 por correção da base de medição, revelando desvio de 15 p.p. que não aparecia nos reportes anteriores. Recomenda-se revisar e republicar a série histórica com o fornecedor.',
+    'Para a meta de 100% do desenvolvimento em 20/11/26 restam 3 sprints, o que exigiria 10,0 p.p. por sprint na Central contra 5,3 p.p. do ritmo observado. O Revenue permanece em 92% há três sprints.',
+    'A fila de validação é de 54 p.p.; no ritmo atual a conclusão se projeta para agosto/2027, contra a meta de 15/01/27 no Reteste. Recomenda-se repactuação das datas.',
+    'Embora Testes e Validações sejam responsabilidade das áreas de negócio, a etapa de Desenvolvimento é de responsabilidade do fornecedor, que deve garantir a disponibilização do produto em condições adequadas para homologação.',
+    'Recomenda-se que o fornecedor priorize testes e homologação, garantindo recursos adequados, massa de dados, material de apoio atualizado e suporte ao negócio, evitando cancelamentos das sessões planejadas.',
+  ],
+  riscos: [
+    { id: 'R-01', texto: 'Testes e validações Central e Revenue abaixo do previsto, alto risco de ATRASO do plano de projeto.', acoes: [
+      { acao: 'Homologação assistida com o time de Central de projetos', responsavel: 'Transformação Digital - Sottelli', prazo: '2026-12-18', cadencia: '', status: 'Em Andamento' },
+      { acao: 'Homologação presencial integrada (in loco - Recife e São Paulo)', responsavel: 'Transformação Digital - Sottelli', prazo: '2026-10-23', cadencia: '', status: 'Em Andamento' },
+    ]},
+    { id: 'R-02', texto: 'Velocidade reduzida nas dinâmicas das homologações com taxa de aprovação abaixo do esperado.', acoes: [
+      { acao: 'Priorizar a homologação, garantir massa de dados, atualização adequada do material de apoio e ter forte acompanhamento da Sottelli nas sessões com a prévia dos testes do fornecedor gravados em vídeo.', responsavel: 'Sottelli', prazo: '2026-10-23', cadencia: '', status: 'Em Andamento' },
+      { acao: 'Negociação junto à consultoria mediante necessidades levantadas a fim de otimização das homologações', responsavel: 'Sottelli', prazo: '2026-10-05', cadencia: '', status: 'Concluído' },
+      { acao: 'Garantir maior disponibilidade do time de negócio', responsavel: 'MV', prazo: '2026-10-02', cadencia: '', status: 'Cancelado' },
+    ]},
+    { id: 'R-03', texto: 'Alto volume de USs pendentes para refinamento e desenvolvimento de produto para Central de Projetos, considerando que no baseline atual temos apenas 2 sprints restantes — resultado de um aparente subdimensionamento do projeto pelo fornecedor.', acoes: [
+      { acao: 'Considerar replanejamento do projeto com deslocamento do cronograma, preservando a capacidade do time MV acordada (5 horas semanais).', responsavel: 'Transformação Digital - Sottelli', prazo: '2026-10-05', cadencia: '', status: 'Aguardando Retorno' },
+      { acao: 'Repactuar as datas de 20/11/26 (desenvolvimento) e 15/01/27 (reteste), que não se sustentam nos ritmos observados: seriam necessários 1,9x o ritmo de desenvolvimento e 3,2x o de validação.', responsavel: 'Transformação Digital - Sottelli', prazo: '', cadencia: '', status: 'Planejamento' },
+    ]},
+    { id: 'R-04', texto: 'Base de medição do desenvolvimento sem critério objetivo de conclusão: o reporte da Central foi reajustado em 15 p.p. no Sprint 17, e a retroprojeção pelo ritmo observado indica divergência de 13 a 17 p.p. acumulada ao longo de cerca de 5 sprints, o que reduz a confiabilidade da série histórica.', acoes: [
+      { acao: 'Revisar a base de medição com o fornecedor e republicar a série histórica corrigida, de modo que o histórico volte a servir de referência para projeção.', responsavel: 'Transformação Digital - Sottelli', prazo: '', cadencia: '', status: 'Planejamento' },
+      { acao: 'Definir critério objetivo de "concluído" para o desenvolvimento (ex.: entregue e disponível em ambiente de homologação), evitando nova divergência de medição.', responsavel: 'Transformação Digital - Sottelli', prazo: '', cadencia: '', status: 'Planejamento' },
+      { acao: 'Acompanhar semanalmente o ritmo de validação, único indicador com tendência confiável no período.', responsavel: 'Transformação Digital - Sottelli', prazo: '', cadencia: 'Semanalmente', status: 'Em Andamento' },
+    ]},
+    { id: 'R-05', texto: 'Falta do desenho as-is e to-be de processos', acoes: [
+      { acao: 'Desenho (AS-IS) Revenue', responsavel: 'Escritório de Performance e TD', prazo: '', cadencia: '', status: 'Concluído' },
+      { acao: 'Desenho (TO-BE) Revenue', responsavel: 'Escritório de Performance e TD', prazo: '', cadencia: '', status: 'Em Andamento' },
+      { acao: 'Mapeamento (AS-IS) Central de Projetos', responsavel: 'Escritório de Performance, TD e Operações', prazo: '2026-10-06', cadencia: '', status: 'Em Andamento' },
+      { acao: 'Desenho (TO-BE) Central de Projetos', responsavel: 'Escritório de Performance, TD e Sottelli', prazo: '', cadencia: '', status: 'Planejamento' },
+    ]},
+  ],
+};
+
+// ─────────────────────────────────────────────
+// RENDERIZAÇÃO
+// ─────────────────────────────────────────────
+
+// Normaliza um risco para { id, texto, acoes:[] }. Aceita texto puro (legado 1)
+// e { plano, responsavel, prazo, status } no nível do risco (legado 2).
+// ─────────────────────────────────────────────
+// RENDERIZAÇÃO DOS GRÁFICOS EM ESPAÇO LÓGICO FIXO
+// ─────────────────────────────────────────────
+// O problema que isto resolve: o canvas é bitmap, e antes ele era desenhado com
+// a largura da janela. A página impressa tem outra largura (A4 paisagem dá cerca
+// de 1000px úteis), então o desenho era comprimido horizontalmente no PDF —
+// texto achatado e rótulos sobrepostos. Como a largura da janela varia, não há
+// valor fixo que sirva, e redesenhar via beforeprint/matchMedia não funciona no
+// Chrome, que não aplica o layout de impressão antes desses eventos.
+//
+// A saída é desenhar sempre num espaço lógico de tamanho constante e deixar o
+// CSS escalar o canvas uniformemente, como faz com uma imagem: largura 100% e
+// altura automática, derivada da proporção do bitmap. Assim o gráfico nunca
+// distorce, em nenhuma largura, e tela e impressão ficam idênticas sem depender
+// de nenhum evento.
+// Espaço lógico de desenho. O gráfico ocupa toda a largura disponível e a altura
+// acompanha na mesma escala, então a forma é idêntica na tela e no papel, em
+// qualquer largura. Mudar a forma do gráfico = mudar a altura lógica.
+const SP_LOG_W = 1000;
+
+// Altura lógica única para os três gráficos — proporção 4:1.
+//
+// Antes cada um herdava a altura da sua tela dedicada (380 na Central, 350 no
+// Revenue, 300 no Histórico). O problema: naquelas telas o gráfico é o único
+// conteúdo da página, então uma proporção alta funciona. Aqui ele convive com
+// oito outras seções, e a mesma medida renderizava 480–520px numa janela de
+// 1440px, contra 130–250px dos blocos vizinhos. O gráfico virava o dobro de
+// tudo, e as três proporções diferentes não conversavam entre si.
+//
+// Em 4:1 os três ficam idênticos e rendem ~345px numa janela de 1440px e ~260px
+// na largura da página impressa: seguem sendo o maior bloco do painel, o que é
+// coerente por serem o centro do relatório, sem dominar o resto.
+const SP_LOG_H = 250;
+
+// Densidade do bitmap: 3x o espaço lógico dá resolução de sobra para o PDF
+// (rasterizado em ~300dpi) e para telas retina. 3000x1140 ≈ 3,4 milhões de px.
+const ESCALA_CANVAS = 3;
+
+// Prepara o canvas no espaço lógico e devolve o contexto já transformado.
+// A partir daqui todo o desenho usa coordenadas de 0..logW / 0..logH.
+function prepararCanvasLogico(canvas, logW, logH) {
+  const ctx = canvas.getContext('2d');
+  canvas.width  = logW * ESCALA_CANVAS;
+  canvas.height = logH * ESCALA_CANVAS;
+  ctx.setTransform(ESCALA_CANVAS, 0, 0, ESCALA_CANVAS, 0, 0);
+  return ctx;
+}
+
+// Converte a posição do mouse (px de tela) para o espaço lógico do desenho.
+// Sem isso o tooltip aponta para o sprint errado em qualquer largura != logW.
+function mouseParaLogico(ev, canvas, logW) {
+  const r = canvas.getBoundingClientRect();
+  const escala = r.width / logW;
+  return { x: (ev.clientX - r.left) / escala, escala, rect: r };
+}
+
+// Cor de fundo que está efetivamente atrás de um elemento: sobe na árvore até
+// encontrar a primeira cor opaca. Serve para o canvas se pintar com a mesma cor
+// do contexto, sem precisar duplicar valores do CSS em JS.
+function corDeFundoEfetiva(el) {
+  let node = el;
+  while (node && node.nodeType === 1) {
+    const bg = getComputedStyle(node).backgroundColor;
+    // Ignora transparente: rgba(0,0,0,0) e a palavra-chave transparent
+    if (bg && bg !== 'transparent' && !/^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(bg)) {
+      return bg;
+    }
+    node = node.parentElement;
+  }
+  return '#0b0f1a'; // igual a --bg, caso tudo acima seja transparente
+}
+
+function normalizaRisco(r) {
+  if (typeof r === 'string') return { id: '', texto: r, acoes: [] };
+  const o = r || {};
+  if (Array.isArray(o.acoes)) return { id: o.id || '', texto: o.texto || '', acoes: o.acoes };
+  const temPlanoAntigo = o.plano || o.responsavel || o.prazo || o.status;
+  return {
+    id: o.id || '', texto: o.texto || '',
+    acoes: temPlanoAntigo ? [{
+      acao: o.plano || '', responsavel: o.responsavel || '',
+      prazo: o.prazo || '', cadencia: '', status: o.status || '',
+    }] : [],
+  };
+}
+
+// Legenda de status: aparece em dois pontos do painel (abaixo de Destaques do
+// Desempenho e no rodapé). Definida uma única vez para as duas não divergirem.
+const LEGENDA_STATUS = [
+  { cor: 'var(--green)',  txt: 'Dentro do prazo (desvio até 5%)' },
+  { cor: 'var(--yellow)', txt: 'Risco de atraso (desvio &gt; 5% e ≤ 10%)' },
+  { cor: 'var(--red)',    txt: 'Atrasado (desvio &gt; 10% e ≤ 15%)' },
+  { cor: '#c084fc',       txt: 'Muito atrasado (desvio &gt; 15%)' },
+];
+
+function renderLegendas() {
+  const html =
+    '<span class="bot-title bt-legend leg-cap">Legenda de Status</span>' +
+    '<ul class="leg-list">' +
+    LEGENDA_STATUS.map(l =>
+      `<li><span class="leg-circle" style="background:${l.cor}"></span>${l.txt}</li>`
+    ).join('') +
+    '</ul>';
+  ['leg-frentes', 'leg-rodape'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
+function formatDateIso(iso) {
+  if (!iso) return '–';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// Converte data em "DD/MM/AAAA", "DD/MM/AA" ou "AAAA-MM-DD" para objeto Date
+// Remove prefixo de dia da semana (ex: "Seg 15/12/25" -> "15/12/25")
+function limparData(str) {
+  if (!str) return str;
+  return str.replace(/^[A-Za-zÀ-ÿ]{3}\.?\s+/, '').trim();
+}
+
+function parseData(str) {
+  if (!str) return null;
+  str = str.trim();
+  if (str.includes('-')) {
+    const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    const d = new Date(str);
+    return isNaN(d) ? null : d;
+  }
+  const parts = str.split('/');
+  if (parts.length !== 3) return null;
+  let [dd, mm, yy] = parts;
+  if (yy.length === 2) yy = '20' + yy;
+  const d = new Date(+yy, +mm - 1, +dd);
+  return isNaN(d) ? null : d;
+}
+
+// Calcula duração total em dias entre início e término
+function calcDuracaoTotal(inicio, termino) {
+  const d1 = parseData(inicio), d2 = parseData(termino);
+  if (!d1 || !d2 || d2 <= d1) return null;
+  const dias = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+  return dias + ' dias';
+}
+
+// Calcula dias decorridos desde o início do projeto até hoje
+function calcDiasDecorridos(inicio, dataReferencia) {
+  const d1 = parseData(inicio);
+  const dRef = parseData(dataReferencia) || parseData(obterDataHojeISO());
+  if (!d1 || !dRef) return null;
+  dRef.setHours(0, 0, 0, 0);
+  const dias = Math.round((dRef - d1) / (1000 * 60 * 60 * 24));
+  return (dias < 0 ? 0 : dias) + ' dias';
+}
+
+function formatDateShort(value) {
+  const date = parseData(value);
+  if (!date) return '–';
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(-2)}`;
+}
+
+function cronogramaMarcos(dados) {
+  const frentes = dados.frentesData || {};
+  return [
+    { id:'inicio-projeto', date:dados.inicio || '15/12/2025', label:'Início do Projeto Nexus' },
+    { id:'inicio-central', date:frentes['dev-central']?.inicio || '2026-01-12', label:'Início do Desenvolvimento Central' },
+    { id:'testes', date:obterDataHojeISO(), label:'Testes', now:true },
+    { id:'fim-revenue', date:frentes.revenue?.termino || '2026-10-05', label:'Encerramento do Desenvolvimento Revenue' },
+    { id:'golive', date:frentes.golive?.termino || '2027-04-01', label:'Go Live' },
+    { id:'operacao-assistida', date:frentes['op-assistida']?.termino || '2027-05-27', label:'Operação Assistida (Encerramento)' },
+  ];
+}
+
+function renderCronograma(dados) {
+  const container = document.getElementById('tl-milestones');
+  if (!container) return;
+
+  const hoje = parseData(obterDataHojeISO()) || new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  // Marcos em ordem cronológica
+  const marcos = cronogramaMarcos(dados)
+    .map(marco => ({ ...marco, parsedDate: parseData(marco.date) }))
+    .filter(marco => marco.parsedDate)
+    .sort((a, b) => a.parsedDate - b.parsedDate);
+
+  if (!marcos.length) { container.innerHTML = ''; return; }
+
+  // Escala: do início do projeto ao maior entre término previsto e último marco
+  const inicio = parseData(dados.inicio) || marcos[0].parsedDate;
+  const terminoDados = parseData(dados.termino);
+  const ultimoMarco = marcos[marcos.length - 1].parsedDate;
+  const termino = (terminoDados && terminoDados > ultimoMarco) ? terminoDados : ultimoMarco;
+  const escala = Math.max(termino - inicio, 1);
+
+  container.innerHTML = marcos.map((m, i) => {
+    const pos = Math.min(Math.max(((m.parsedDate - inicio) / escala) * 100, 0), 100);
+    const passou = m.parsedDate <= hoje;
+    const estado = m.now ? 'is-now' : passou ? 'is-past' : 'is-future';
+    const dot    = m.now ? 'tdot-now' : passou ? 'tdot-past' : 'tdot-future';
+    const dateId = m.now ? ' id="tl-now-date"' : '';
+
+    // Alterna acima/abaixo: marcos vizinhos nunca disputam o mesmo espaço
+    const lado = i % 2 === 0 ? 'down' : 'up';
+    // Nas pontas, alinha o rótulo à borda para não ser cortado
+    const edge = pos <= 9 ? ' edge-left' : pos >= 91 ? ' edge-right' : '';
+    const chip = m.now ? '<span class="tl-chip">ESTAMOS AQUI</span>' : '';
+
+    return `<div class="cronograma-milestone ${estado}" style="left:${pos.toFixed(2)}%">
+      <span class="tl-stem ${lado}"></span>
+      <span class="tl-dot ${dot}"></span>
+      <div class="tl-label ${lado}${edge}">
+        <span class="tl-date"${dateId}>${formatDateShort(m.date)}</span>
+        <span class="tl-desc">${m.label}</span>
+        ${chip}
+      </div>
+    </div>`;
+  }).join('');
+
+  atualizarPrazoDecorrido(dados.inicio, dados.termino);
+}
+
+// Barra "Prazo decorrido": quanto do cronograma já passou até hoje
+function atualizarPrazoDecorrido(inicio, termino) {
+  const fill = document.getElementById('tl-progress');
+  const pctEl = document.getElementById('tl-pct');
+  const subEl = document.getElementById('tl-restante');
+
+  const d1 = parseData(inicio), d2 = parseData(termino);
+  const hoje = parseData(obterDataHojeISO()) || new Date();
+  hoje.setHours(0, 0, 0, 0);
+  if (!d1 || !d2 || d2 <= d1) return;
+
+  const DIA = 1000 * 60 * 60 * 24;
+  let pct = ((hoje - d1) / (d2 - d1)) * 100;
+  pct = Math.min(Math.max(pct, 0), 100);
+
+  if (fill) fill.style.width = pct.toFixed(1) + '%';
+
+  const decorridos = Math.max(Math.round((hoje - d1) / DIA), 0);
+  const restantes  = Math.max(Math.round((d2 - hoje) / DIA), 0);
+  if (pctEl) pctEl.textContent = Math.round(pct) + '% do prazo · ' + decorridos + ' dias decorridos';
+  if (subEl) subEl.textContent = restantes + ' dias restantes';
+}
+
+// ─────────────────────────────────────────────
+// DISTRIBUIÇÃO DO PROJETO POR FASE (barra única ponderada pelo peso)
+// ─────────────────────────────────────────────
+// curto = rótulo exibido dentro da faixa | txt = cor do texto p/ contraste com o fundo
+const FASES_PESO = [
+  { label:'Desenvolvimento',             curto:'Desenvolvimento', peso:44.10, cor:'#3b82f6', txt:'#ffffff' },
+  { label:'Legado',                      curto:'Legado',          peso:12.50, cor:'#8b5cf6', txt:'#ffffff' },
+  { label:'Testes integrados',           curto:'Testes integ.',   peso:11.00, cor:'#06b6d4', txt:'#04222b' },
+  { label:'Treinamentos',                curto:'Treinamentos',    peso:8.80,  cor:'#eab308', txt:'#2a2000' },
+  { label:'Cadastros e parametrizações', curto:'Cadastros',       peso:6.60,  cor:'#f97316', txt:'#2b1200' },
+  { label:'Go Live',                     curto:'Go Live',         peso:6.60,  cor:'#22c55e', txt:'#04240f' },
+  { label:'Operação assistida',          curto:'Op. assistida',   peso:10.30, cor:'#ec4899', txt:'#ffffff' },
+];
+
+// Converte os pesos em inteiros cuja soma fecha SEMPRE em 100%.
+// Método do maior resto: arredonda todos para baixo e distribui a diferença
+// que falta para 100 entre as fases com a maior parte fracionária.
+function calcularPesosInteiros() {
+  const total = FASES_PESO.reduce((s, f) => s + f.peso, 0);
+  const exatos = FASES_PESO.map(f => (f.peso / total) * 100);
+  const inteiros = exatos.map(v => Math.floor(v));
+
+  let sobra = 100 - inteiros.reduce((s, v) => s + v, 0);
+  const porFracao = exatos
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+
+  for (let k = 0; k < sobra && k < porFracao.length; k++) {
+    inteiros[porFracao[k].i]++;
+  }
+  return inteiros;
+}
+
+// Tooltip: peso exato, para não perder a precisão do plano
+function fmtPeso(n) {
+  return (+n.toFixed(2)).toString().replace('.', ',') + '%';
+}
+
+function renderPesoFases() {
+  const bar = document.getElementById('peso-bar');
+  const labs = document.getElementById('peso-labels');
+  const totalEl = document.getElementById('peso-total');
+  if (!bar) return;
+
+  // Normaliza pelo total declarado (99,9%) para a barra fechar em 100% da largura
+  const total = FASES_PESO.reduce((s, f) => s + f.peso, 0);
+  const largura = f => ((f.peso / total) * 100).toFixed(2);
+  const inteiros = calcularPesosInteiros();
+
+  // Rótulos acima da linha, alinhados a cada faixa e na cor da própria fase
+  if (labs) {
+    labs.innerHTML = FASES_PESO.map(f =>
+      `<div class="peso-lab" style="width:${largura(f)}%;color:${f.cor}"
+        title="${f.label} — ${fmtPeso(f.peso)} do projeto">${f.curto}</div>`
+    ).join('');
+  }
+
+  bar.innerHTML = FASES_PESO.map((f, i) =>
+    `<div class="peso-seg" style="width:${largura(f)}%;background:${f.cor};color:${f.txt}"
+      title="${f.label} — ${fmtPeso(f.peso)} do projeto"><span class="ps-pct">${inteiros[i]}%</span></div>`
+  ).join('');
+
+  // Soma dos valores exibidos — fecha em 100% por construção
+  if (totalEl) {
+    const soma = inteiros.reduce((s, v) => s + v, 0);
+    totalEl.textContent = 'Total ' + soma + '%';
+    totalEl.style.color = soma === 100 ? 'var(--green)' : 'var(--yellow)';
+  }
+}
+
+function pct(v) { return Math.min(Math.max(parseFloat(v) || 0, 0), 100); }
+
+function desvioStr(p, r) {
+  const d = r - p;
+  return (d >= 0 ? '+' : '') + d + ' p.p.';
+}
+
+function statusBadge(desvio) {
+  if (desvio >= -5)  return '<span class="badge b-ok"><span class="bdot bd-ok"></span>Dentro do prazo</span>';
+  if (desvio >= -10) return '<span class="badge b-risco"><span class="bdot bd-risco"></span>Risco de atraso</span>';
+  if (desvio >= -15) return '<span class="badge b-atraso"><span class="bdot bd-atr"></span>Atrasado</span>';
+  return '<span class="badge b-muito"><span class="bdot bd-muito"></span>Muito atrasado</span>';
+}
+
+function miniBar(valor, tipo) {
+  const cls = tipo === 'previsto' ? 'tbf-blue' : (pct(valor) < 30 ? 'tbf-warn' : 'tbf-green');
+  return `<div class="tb-bar"><span class="tb-pct">${valor}%</span><div class="tb-track"><div class="tb-fill ${cls}" style="width:${pct(valor)}%"></div></div></div>`;
+}
+
+function render(dados) {
+  // A data oficial do painel vem do calendário do registro ativo salvo no admin.
+  // Usa a data do sistema apenas quando ainda não existe um registro com dataRef.
+  dados = { ...dados, dataRef: dados.dataRef || obterDataHojeISO() };
+  if (document.body) document.body.dataset.dataRef = dados.dataRef;
+
+  const p = pct(dados.previsto);
+  const r = pct(dados.realizado);
+  const d = r - p;
+
+  // Header data — sempre a data de hoje
+  document.getElementById('hdr-data-ref').textContent = formatDateIso(obterDataHojeISO());
+
+  // KPIs
+  document.getElementById('kpi-previsto').textContent     = p + '%';
+  document.getElementById('kpi-realizado').textContent    = r + '%';
+  // Progresso Previsto Operações = Previsto × 74,94%
+  const opEl = document.getElementById('kpi-previsto-op');
+  const opPrev = Math.round(p * 0.7494);
+  if (opEl) opEl.textContent = opPrev + '%';
+  // Progresso Realizado Operações = Realizado × 74,94%
+  const opElR = document.getElementById('kpi-realizado-op');
+  const opReal = Math.round(r * 0.7494);
+  if (opElR) opElR.textContent = opReal + '%';
+  // Desvio de Operações = Previsto Op. − Realizado Op.
+  const opElD = document.getElementById('kpi-desvio-op');
+  if (opElD) {
+    const dOp = opPrev - opReal;
+    opElD.textContent = (dOp >= 0 ? '+' : '') + dOp + ' p.p.';
+    opElD.className = 'kpi-value ' + (dOp > 0 ? 'kv-red' : dOp < 0 ? 'kv-green' : 'kv-blue');
+  }
+  document.getElementById('kpi-previsto-sub').textContent = (dados.duracao || '') + ' (início ' + (dados.inicio || '') + ')';
+  document.getElementById('kpi-realizado-sub').textContent= (dados.duracao || '') + ' (início ' + (dados.inicio || '') + ')';
+
+  const devEl  = document.getElementById('kpi-desvio');
+  const devSub = document.getElementById('kpi-desvio-sub');
+  devEl.textContent  = (d >= 0 ? '+' : '') + d + ' p.p.';
+  devEl.className    = 'kpi-value ' + (d >= 0 ? 'kv-green' : 'kv-red');
+  devSub.textContent = d >= 0 ? 'Acima do previsto' : 'Abaixo do previsto';
+
+  const duracaoCalc = calcDuracaoTotal(dados.inicio, dados.termino) || dados.duracao || '–';
+  document.getElementById('kpi-duracao').textContent = duracaoCalc;
+  document.getElementById('kpi-periodo').textContent = (dados.inicio || '') + ' a ' + (dados.termino || '');
+  // Dias decorridos desde o início até hoje
+  const decorridos = calcDiasDecorridos(dados.inicio) || '–';
+  document.getElementById('kpi-decorridos').textContent = decorridos;
+  // Frentes ativas = frentes com previsto ou realizado maior que zero
+  const frentesAtivasList = FRENTES_PAINEL.filter(f => {
+    const fd = dados.frentesData?.[f.id] || { previsto:'0', realizado:'0' };
+    return pct(fd.previsto) > 0 || pct(fd.realizado) > 0;
+  });
+  const frentesAtivas = frentesAtivasList.length;
+  document.getElementById('kpi-frentes').textContent = frentesAtivas;
+  const subEl = document.getElementById('kpi-frentes-sub');
+  if (subEl) {
+    subEl.textContent = frentesAtivas > 0
+      ? frentesAtivasList.map(f => f.label).join(', ')
+      : 'Nenhuma frente ativa';
+  }
+  if (document.getElementById('kpi-total-frentes')) {
+    document.getElementById('kpi-total-frentes').textContent = FRENTES_PAINEL.length;
+  }
+
+  // Cronograma Geral — metadados dinâmicos e marcos derivados do snapshot ativo
+  document.getElementById('tl-inicio').textContent  = dados.inicio  || '–';
+  document.getElementById('tl-duracao').textContent = duracaoCalc;
+  document.getElementById('tl-termino').textContent = dados.termino || '–';
+  renderCronograma(dados);
+
+  // Destaques
+  const destColors = (id, rv, pv) => {
+    if (id.includes('uat')) return rv < pv * 0.5 ? 'dp-red' : 'dp-yellow';
+    return rv >= pv * 0.85 ? 'dp-green' : 'dp-yellow';
+  };
+  document.getElementById('dest-grid').innerHTML = DESTAQUES_META.map(dm => {
+    const dd = dados.destaquesData?.[dm.id] || { previsto:'0', realizado:'0' };
+    const pv = pct(dd.previsto), rv = pct(dd.realizado);
+    const rColor = destColors(dm.id, rv, pv);
+    const titleHtml = dm.label.replace('\n','<br>');
+    const dev = rv - pv;
+    const devStr = (dev >= 0 ? '+' : '') + dev + ' p.p.';
+    const devCls = dev === 0 ? 'zer'
+                 : dev > 0   ? 'pos'
+                 : dev >= -5  ? 'neg-ok'
+                 : dev >= -10 ? 'neg-risco'
+                 : dev >= -15 ? 'neg-atr'
+                 : 'neg-muito';
+    return `<div class="dest-card">
+      <div class="dest-header">
+        <div class="dest-icon ${dm.iconClass}">${dm.icon}</div>
+        <div class="dest-title">${titleHtml}</div>
+      </div>
+      <div class="dest-values">
+        <div class="dest-val"><span class="dest-pct dp-blue">${pv}%</span><span class="dest-lbl">Previsto</span></div>
+        <div class="dest-val"><span class="dest-pct ${rColor}">${rv}%</span><span class="dest-lbl">Realizado</span></div>
+        <span class="dest-desvio ${devCls}">${devStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Resumo
+  // Ícone definido pelo CONTEÚDO do item (não pela posição), graduado pela
+  // gravidade e sem repetir: o primeiro item que casa com a regra fica com o ícone.
+  const REGRAS_ICONE = [
+    [/homologa.*baixo avan|baixo avan.*homologa/,       '🔴'],           // farol vermelho
+    [/recomenda-se|recomenda\b|priorize|cancelamento/,  '🚨'],           // sirene — recomendação
+    [/responsabilidade/,                                '\u26A0\uFE0F'], // alerta — responsabilidades
+    [/pontos? de aten/,                                 '\u{1F50D}'],    // lupa — ponto de atenção
+    [/represad|represamento|indisponibilidad|bloquead/,  '🚧'],           // impedimento
+    [/go live/,                                         '⛔'],           // interdição
+    [/desvio|p\.p\./,                                   '📉'],           // queda
+    [/escopo|contrat/,                                  '📋'],           // compromisso
+    [/demais frentes|em prepara/,                       '📌'],           // demais frentes
+    [/valida|homologa|teste/,                           '🧪'],           // validações
+    [/prazo|cronograma|semestre/,                       '🗓️'],           // calendário
+  ];
+  // Escapes Unicode para não dependerem da codificação do arquivo
+  const ICONES_RESERVA = ['\u{1F527}', '\u{1F4DD}', '\u25AA\uFE0F'];
+  const iconesUsados = new Set();
+
+  function iconeResumo(txt) {
+    const t = (txt || '').toLowerCase();
+    for (const [regra, icone] of REGRAS_ICONE) {
+      if (regra.test(t) && !iconesUsados.has(icone)) { iconesUsados.add(icone); return icone; }
+    }
+    const livre = ICONES_RESERVA.find(ic => !iconesUsados.has(ic)) || '▪️';
+    iconesUsados.add(livre);
+    return livre;
+  }
+
+  // Cada item pode ser texto puro (ícone automático pelas regras acima) ou
+  // { icone, texto } — nesse caso o ícone escolhido no admin tem prioridade.
+  const itensResumo = (dados.resumo || []).map(item => typeof item === 'string'
+    ? { texto: item, escolhido: '' }
+    : { texto: item?.texto || '', escolhido: item?.icone || '' });
+
+  // Reserva os ícones escolhidos antes de distribuir os automáticos,
+  // para que a atribuição automática não ocupe um ícone já definido no admin.
+  itensResumo.forEach(it => { if (it.escolhido) iconesUsados.add(it.escolhido); });
+
+  document.getElementById('resumo-list').innerHTML = itensResumo.map(it => {
+    const icone = it.escolhido || iconeResumo(it.texto);
+    return `<li><span class="ri">${icone}</span><span>${it.texto}</span></li>`;
+  }).join('');
+
+  // Tabela
+  document.getElementById('tbl-tbody').innerHTML = TABELA_META.map((row, i) => {
+    const fd = dados.frentesData?.[row.id] || { previsto:'0', realizado:'0', status:'ok' };
+    const pv = pct(fd.previsto), rv = pct(fd.realizado);
+    const dev = rv - pv;
+    const devCls = dev < 0 ? 'color:var(--red)' : dev > 0 ? 'color:var(--green)' : 'color:var(--muted2)';
+    const indent = row.nivel === 1 ? 'indent1' : row.nivel === 2 ? 'indent2' : '';
+    const rowCls = row.nivel === 0 ? 'row-frente' : row.nivel === 2 ? 'row-sub2' : '';
+    // Usa dados editáveis do admin se disponíveis, senão usa os estáticos
+    const displayLabel = fd.nome || row.label;
+    // Datas de origem (admin ISO ou estáticas com prefixo de dia da semana)
+    const rawIni = (fd.inicio && fd.inicio.includes('-')) ? fd.inicio : row.inicio;
+    const rawTer = (fd.termino && fd.termino.includes('-')) ? fd.termino : row.termino;
+    // Duração sempre em DIAS CORRIDOS calculada a partir das datas
+    let displayDur = fd.duracao || row.duracao;
+    const dIni = parseData(limparData(rawIni)), dTer = parseData(limparData(rawTer));
+    if (dIni && dTer && dTer >= dIni) {
+      displayDur = Math.round((dTer - dIni) / (1000*60*60*24)) + ' dias';
+    }
+    const displayIni   = (fd.inicio && fd.inicio.includes('-')) ? formatDateIso(fd.inicio) : row.inicio;
+    const displayTer   = (fd.termino && fd.termino.includes('-')) ? formatDateIso(fd.termino) : row.termino;
+
+    const hasChildren = temFilhas(i);
+    // Toggle chevron para linhas pai, já no estado inicial correto
+    const fechada = LINHAS_FECHADAS.has(i);
+    const chevron = hasChildren
+      ? `<span class="tbl-toggle" onclick="toggleRow(${i})" data-open="${fechada ? '0' : '1'}" style="cursor:pointer;display:inline-block;width:14px;color:var(--blue2);user-select:none;">${fechada ? '▸' : '▾'}</span>`
+      : (row.nivel > 0 ? '<span style="display:inline-block;width:14px;"></span>' : '');
+
+    const nameHtml = chevron + (row.icon
+      ? `<span class="td-icon">${row.icon}</span>${displayLabel}`
+      : displayLabel);
+
+    return `<tr class="${rowCls}" data-row="${i}" data-nivel="${row.nivel}">
+      <td class="${indent}">${nameHtml}</td>
+      <td>${displayDur}</td>
+      <td>${displayIni}</td>
+      <td>${displayTer}</td>
+      <td>${miniBar(pv, 'previsto')}</td>
+      <td>${miniBar(rv, 'realizado')}</td>
+      <td style="font-weight:700; ${devCls}">${(dev >= 0 ? '+' : '') + dev} p.p.</td>
+      <td>${statusBadge(dev)}</td>
+    </tr>`;
+  }).join('');
+
+  // Aplica o estado de colapso depois de montar as linhas
+  aplicarColapsoTabela();
+
+  // Riscos — aceita texto puro (legado) e { texto, responsavel, prazo, status }
+  const CLS_STATUS = {
+    'Concluído': 'st-conc', 'Em Andamento': 'st-anda',
+    'Aguardando Retorno': 'st-agua', 'Planejamento': 'st-plan',
+    'Cancelado': 'st-canc',
+  };
+  // Status que encerram a ação: prazo passado não conta como atraso nesses casos
+  const STATUS_ENCERRADOS = ['Concluído', 'Cancelado'];
+  const hojeRef = new Date(dados.dataRef || Date.now());
+
+  document.getElementById('riscos-list').innerHTML = (dados.riscos || []).map(r => {
+    const o = normalizaRisco(r);
+    const marca = o.id
+      ? `<span class="risco-id">${o.id}</span>`
+      : '<span style="color:var(--yellow)">●</span>';
+    const desc = `<div class="risco-desc">${marca}<span>${o.texto}</span></div>`;
+
+    // Tabela do plano de ação (só aparece se houver ação cadastrada)
+    let plano = '';
+    if (o.acoes.length) {
+      const linhas = o.acoes.map((a, i) => {
+        let prazo = '–', clsPrazo = '';
+        if (a.prazo) {
+          const [an, m, d] = a.prazo.split('-');
+          prazo = `${d}/${m}/${an}`;
+          if (new Date(a.prazo) < hojeRef && STATUS_ENCERRADOS.indexOf(a.status) === -1) {
+            clsPrazo = ' class="acao-atraso"';
+          }
+        }
+        const st = a.status
+          ? `<span class="risco-st ${CLS_STATUS[a.status] || 'st-plan'}">${a.status}</span>`
+          : '–';
+        return `<tr>
+          <td class="acao-n">${i + 1}</td>
+          <td class="acao-txt">${a.acao || ''}</td>
+          <td>${a.responsavel || '–'}</td>
+          <td${clsPrazo}>${prazo}</td>
+          <td>${a.cadencia || '–'}</td>
+          <td>${st}</td>
+        </tr>`;
+      }).join('');
+      plano = `<div class="risco-plano">
+        <div class="plano-hdr">Plano de ação</div>
+        <table class="plano-tbl">
+          <thead><tr><th>#</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Cadência</th><th>Status</th></tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>`;
+    }
+
+    return `<li class="risco-li">${desc}${plano}</li>`;
+  }).join('');
+
+  // Contador do cabeçalho: quantos riscos e quantas ações no total
+  const listaRiscos = (dados.riscos || []).map(normalizaRisco);
+  const totalAcoes = listaRiscos.reduce((s, x) => s + x.acoes.length, 0);
+  const elCont = document.getElementById('riscos-cont');
+  if (elCont) {
+    elCont.textContent = listaRiscos.length
+      ? `${listaRiscos.length} ${listaRiscos.length === 1 ? 'registro' : 'registros'}`
+        + ` · ${totalAcoes} ${totalAcoes === 1 ? 'ação' : 'ações'} no plano`
+      : '';
+  }
+
+
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+window.onload = function() {
+  // localStorage pode estar bloqueado (Safari via file://, aba privada) ou com
+  // JSON corrompido. Nesses casos caímos nos dados padrão em vez de quebrar tudo.
+  let dados = DEFAULTS;
+  try {
+    const saved = localStorage.getItem('nexus_dados');
+    if (saved) dados = JSON.parse(saved);
+  } catch (e) {
+    console.warn('Não foi possível ler os dados salvos, usando padrão.', e);
+  }
+  render(dados);
+  renderLegendas();
+  renderPesoFases();
+  initConsolidado();
+  initCentral();
+  initRevenue();
+  setTimeout(renderChart, 60);
+  renderSprintsTable();
+  renderHistList();
+
+  // Redesenha o gráfico ao redimensionar a janela
+  let rzTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(function() {
+      renderChart(); renderConsChart(); renderCenChart(); renderRevChart();
+    }, 150);
+  });
+
+  // O gráfico é um canvas: o bitmap é gerado com as dimensões da tela. Como o
+  // CSS de impressão reduz a altura do container, é preciso redesenhar quando
+  // entra e quando sai do modo de impressão, senão o desenho sai esticado.
+  function redesenharGrafico() {
+    try { renderChart(); } catch (e) {}
+    try { renderConsChart(); } catch (e) {}
+    try { renderCenChart(); } catch (e) {}
+    try { renderRevChart(); } catch (e) {}
+  }
+  window.addEventListener('beforeprint', redesenharGrafico);
+  window.addEventListener('afterprint', redesenharGrafico);
+  if (window.matchMedia) {
+    // Safari e o preview do Chrome não disparam beforeprint de forma confiável
+    const mqPrint = window.matchMedia('print');
+    if (mqPrint.addEventListener) mqPrint.addEventListener('change', redesenharGrafico);
+    else if (mqPrint.addListener) mqPrint.addListener(redesenharGrafico);
+  }
+
+  // Atualiza a posição automaticamente quando o calendário local virar o dia.
+  let dataHojeConhecida = obterDataHojeISO();
+  window.setInterval(function() {
+    const dataHoje = obterDataHojeISO();
+    if (dataHoje === dataHojeConhecida) return;
+    dataHojeConhecida = dataHoje;
+    render(dados);
+    renderChart();
+  }, 60000);
+};
+
+// ─────────────────────────────────────────────
+// GRÁFICO HISTÓRICO
+// ─────────────────────────────────────────────
+// ── Peso ponderado aplicado ao consolidado (mesma premissa do gráfico consolidado)
+const PESO_PONDERADO = 0.441;
+
+// Dados padrão de Central e Revenue por sprint (espelho do grafico-historico-consolidado)
+const CENTRAL_DEFAULT = [
+  { sprint:'Sprint 1',  ini:'qua. 07/01/26', ter:'ter. 20/01/26', prevDesenv:10, realDesenv:4,  prevValid:0,  valid:0  },
+  { sprint:'Sprint 2',  ini:'qua. 21/01/26', ter:'qua. 04/02/26', prevDesenv:15, realDesenv:9,  prevValid:0,  valid:0  },
+  { sprint:'Sprint 3',  ini:'qui. 05/02/26', ter:'seg. 23/02/26', prevDesenv:20, realDesenv:15, prevValid:4,  valid:0  },
+  { sprint:'Sprint 4',  ini:'seg. 23/02/26', ter:'seg. 09/03/26', prevDesenv:24, realDesenv:20, prevValid:9,  valid:0  },
+  { sprint:'Sprint 5',  ini:'ter. 10/03/26', ter:'ter. 24/03/26', prevDesenv:29, realDesenv:24, prevValid:15, valid:0  },
+  { sprint:'Sprint 6',  ini:'qua. 25/03/26', ter:'qui. 09/04/26', prevDesenv:34, realDesenv:30, prevValid:20, valid:0  },
+  { sprint:'Sprint 7',  ini:'sex. 10/04/26', ter:'seg. 27/04/26', prevDesenv:39, realDesenv:35, prevValid:24, valid:0  },
+  { sprint:'Sprint 8',  ini:'ter. 28/04/26', ter:'seg. 18/05/26', prevDesenv:45, realDesenv:41, prevValid:30, valid:17 },
+  { sprint:'Sprint 9',  ini:'ter. 19/05/26', ter:'ter. 02/06/26', prevDesenv:50, realDesenv:46, prevValid:35, valid:17 },
+  { sprint:'Sprint 10', ini:'qua. 03/06/26', ter:'qua. 17/06/26', prevDesenv:54, realDesenv:51, prevValid:41, valid:17 },
+  { sprint:'Sprint 11', ini:'qui. 18/06/26', ter:'sex. 03/07/26', prevDesenv:59, realDesenv:57, prevValid:46, valid:17 },
+  { sprint:'Sprint 12', ini:'seg. 06/07/26', ter:'seg. 20/07/26', prevDesenv:64, realDesenv:62, prevValid:51, valid:17 },
+  { sprint:'Sprint 13', ini:'ter. 21/07/26', ter:'ter. 04/08/26', prevDesenv:71, realDesenv:66, prevValid:57, valid:17 },
+  { sprint:'Sprint 14', ini:'qua. 05/08/26', ter:'qui. 20/08/26', prevDesenv:73, realDesenv:71, prevValid:62, valid:17 },
+];
+const REVENUE_DEFAULT = [
+  { sprint:'Sprint 1',  ini:'qua. 07/01/26', ter:'ter. 20/01/26', prevDesenv:6,  realDesenv:5,  prevValid:0,  valid:0 },
+  { sprint:'Sprint 2',  ini:'qua. 21/01/26', ter:'qua. 04/02/26', prevDesenv:12, realDesenv:12, prevValid:0,  valid:0 },
+  { sprint:'Sprint 3',  ini:'qui. 05/02/26', ter:'seg. 23/02/26', prevDesenv:20, realDesenv:19, prevValid:5,  valid:0 },
+  { sprint:'Sprint 4',  ini:'seg. 23/02/26', ter:'seg. 09/03/26', prevDesenv:26, realDesenv:25, prevValid:12, valid:0 },
+  { sprint:'Sprint 5',  ini:'ter. 10/03/26', ter:'ter. 24/03/26', prevDesenv:32, realDesenv:31, prevValid:19, valid:0 },
+  { sprint:'Sprint 6',  ini:'qua. 25/03/26', ter:'qui. 09/04/26', prevDesenv:39, realDesenv:38, prevValid:25, valid:0 },
+  { sprint:'Sprint 7',  ini:'sex. 10/04/26', ter:'seg. 27/04/26', prevDesenv:46, realDesenv:45, prevValid:31, valid:0 },
+  { sprint:'Sprint 8',  ini:'ter. 28/04/26', ter:'seg. 18/05/26', prevDesenv:55, realDesenv:55, prevValid:38, valid:0 },
+  { sprint:'Sprint 9',  ini:'ter. 19/05/26', ter:'ter. 02/06/26', prevDesenv:61, realDesenv:61, prevValid:45, valid:0 },
+  { sprint:'Sprint 10', ini:'qua. 03/06/26', ter:'qua. 17/06/26', prevDesenv:68, realDesenv:68, prevValid:55, valid:0 },
+  { sprint:'Sprint 11', ini:'qui. 18/06/26', ter:'sex. 03/07/26', prevDesenv:76, realDesenv:75, prevValid:61, valid:0 },
+  { sprint:'Sprint 12', ini:'seg. 06/07/26', ter:'seg. 20/07/26', prevDesenv:82, realDesenv:81, prevValid:68, valid:6 },
+  { sprint:'Sprint 13', ini:'ter. 21/07/26', ter:'ter. 04/08/26', prevDesenv:92, realDesenv:87, prevValid:75, valid:6 },
+  { sprint:'Sprint 14', ini:'qua. 05/08/26', ter:'qui. 20/08/26', prevDesenv:94, realDesenv:94, prevValid:81, valid:6 },
+];
+
+function _isNA(v) {
+  return v === 'NA' || v === null || v === undefined ||
+         (typeof v === 'string' && v.trim().toUpperCase() === 'NA');
+}
+
+// ═════════════════════════════════════════════════════════════
+// HISTÓRICO CONSOLIDADO — réplica de grafico-historico-consolidado.html
+// Consolidado = média simples entre Central e Revenue, campo por campo, com os
+// ajustes manuais de nexus_consolidado_override sobrepostos por nome de sprint.
+// Aqui é somente leitura: a edição continua na tela dedicada.
+//
+// Reaproveita _carregarSprints, _media e _isNA, que o painel já usa para o
+// gráfico de Histórico por Sprint — assim os dois partem exatamente da mesma
+// normalização de Central e Revenue, sem duplicar defaults nem fórmula.
+// ═════════════════════════════════════════════════════════════
+const CONS_OVERRIDE_KEY = 'nexus_consolidado_override';
+
+// Mesmas quatro cores dos gráficos Central e Revenue do painel, para as três
+// seções ficarem visualmente iguais.
+const CONS_SERIES = [
+  { key:'prevDesenv', color:'#3b82f6' },
+  { key:'realDesenv', color:'#22c55e' },
+  { key:'prevValid',  color:'#a78bfa' },
+  { key:'valid',      color:'#f43f5e' },
+];
+
+let CONS_DADOS = [];
+let CONS_GEO = null;
+let CONS_TIP_ON = false;
+
+function consOverrides() {
+  try {
+    const s = localStorage.getItem(CONS_OVERRIDE_KEY);
+    const p = s ? JSON.parse(s) : null;
+    return (p && typeof p === 'object' && !Array.isArray(p)) ? p : {};
+  } catch (e) { return {}; }
+}
+
+function consCarregar() {
+  const central = _carregarSprints('nexus_central_dados', CENTRAL_DEFAULT,
+    { ini:'ini', ter:'ter', prevValid:'prevValidScrum', valid:'valid' });
+  const revenue = _carregarSprints('nexus_revenue_sprints', REVENUE_DEFAULT,
+    { ini:'inicio', ter:'termino', prevValid:'prevValidado', valid:'validado' });
+  const ov = consOverrides();
+
+  const linhas = [];
+  const maxLen = Math.max(central.length, revenue.length);
+  for (let i = 0; i < maxLen; i++) {
+    const c = central[i] || {}, r = revenue[i] || {};
+    const nome = c.sprint || r.sprint || ('Sprint ' + (i + 1));
+    const base = {
+      sprint: nome,
+      ini: c.ini || r.ini || '',
+      ter: c.ter || r.ter || '',
+      prevDesenv: _media(c.prevDesenv, r.prevDesenv),
+      realDesenv: _media(c.realDesenv, r.realDesenv),
+      prevValid:  _media(c.prevValid,  r.prevValid),
+      valid:      _media(c.valid,      r.valid),
+    };
+    // O ajuste manual sobrepõe a média e marca a sprint como editada
+    const o = ov[nome];
+    linhas.push(o ? { ...base, ...o, sprint: nome, editada: true } : base);
+  }
+  return linhas;
+}
+
+function toggleConsTabela() {
+  const box = document.getElementById('cons-collapse');
+  const arrow = document.getElementById('cons-arrow');
+  if (!box) return;
+  const aberto = box.style.display !== 'none';
+  box.style.display = aberto ? 'none' : 'block';
+  if (arrow) arrow.style.transform = aberto ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function renderConsTabela() {
+  const tb = document.getElementById('cons-tbody');
+  if (!tb) return;
+  const pct = v => _isNA(v) ? 'NA' : v + '%';
+  tb.innerHTML = CONS_DADOS.map(d => `
+    <tr>
+      <td class="sp-sprint">${d.sprint || ''}${d.editada ? ' <span style="color:#a78bfa">•</span>' : ''}</td>
+      <td>${d.ini || ''}</td>
+      <td>${d.ter || ''}</td>
+      <td class="sp-b">${pct(d.prevDesenv)}</td>
+      <td class="sp-g">${pct(d.realDesenv)}</td>
+      <td class="sp-p">${pct(d.prevValid)}</td>
+      <td class="sp-r">${pct(d.valid)}</td>
+    </tr>`).join('');
+}
+
+function consLigarTooltip() {
+  if (CONS_TIP_ON) return;
+  const canvas = document.getElementById('cons-canvas');
+  const tip = document.getElementById('cons-tip');
+  if (!canvas || !tip) return;
+  CONS_TIP_ON = true;
+
+  const fmt = v => _isNA(v) ? 'NA' : v + '%';
+  const dev = (r, p) => (_isNA(r) || _isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#64748b'
+    : d >= -5 ? '#22c55e' : d >= -10 ? '#eab308' : d >= -15 ? '#f43f5e' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="rt-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CONS_GEO) return;
+    const { x: mx, escala, rect: r } = mouseParaLogico(ev, canvas, SP_LOG_W);
+    const { padL, step, n } = CONS_GEO;
+
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = CONS_DADOS[idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.ter).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dev(d.realDesenv, d.prevDesenv);
+    const devVal = dev(d.valid, d.prevValid);
+
+    tip.innerHTML =
+      `<div class="rt-data">${d.sprint} · ${dataCurta}${d.editada ? ' · ajuste manual' : ''}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#3b82f6') +
+      linha('Realizado', fmt(d.realDesenv), '#22c55e') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="rt-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValid), '#a78bfa') +
+      linha('Validado Real', fmt(d.valid), '#f43f5e') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    const xTela = (padL + step * idx) * escala;
+    let left = xTela + 14;
+    if (left + tw > r.width) left = xTela - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+function renderConsChart() {
+  const canvas = document.getElementById('cons-canvas');
+  if (!canvas || !canvas.getContext) return;
+  const container = document.getElementById('cons-chart-container');
+  if (!container) return;
+
+  // Mesmo espaço lógico e mesma geometria dos gráficos Central e Revenue
+  const W = SP_LOG_W, H = SP_LOG_H;
+  const ctx = prepararCanvasLogico(canvas, W, H);
+
+  const padL = 44, padR = 20, padT = 20, padB = 44;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = CONS_DADOS.length;
+  if (n < 2) return;
+  const step = chartW / (n - 1);
+  const maxVal = 100;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = corDeFundoEfetiva(container);
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid + eixo Y
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#5f7590'; ctx.font = '8px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  // Rótulos do eixo X
+  CONS_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b0bfd0'; ctx.font = '8px Inter,sans-serif';
+    ctx.fillText(d.sprint || '', x, H - 22);
+    ctx.fillStyle = '#5f7590'; ctx.font = '7px Inter,sans-serif';
+    ctx.fillText(String(d.ter || '').replace(/^[^\d]*/, ''), x, H - 8);
+  });
+
+  // Marco da data de hoje, interpolado entre os términos das sprints
+  (function marcoHoje() {
+    const datas = CONS_DADOS.map(d => revParseData(d.ter));
+    if (!datas[0] || !datas[n - 1]) return;
+    const hoje = new Date();
+    let pos = null;
+    if (hoje <= datas[0]) pos = 0;
+    else if (hoje >= datas[n - 1]) pos = n - 1;
+    else {
+      for (let i = 0; i < n - 1; i++) {
+        if (datas[i] && datas[i + 1] && hoje >= datas[i] && hoje <= datas[i + 1]) {
+          pos = i + (hoje - datas[i]) / (datas[i + 1] - datas[i]);
+          break;
+        }
+      }
+    }
+    if (pos === null) return;
+    const mx = padL + step * pos;
+    ctx.save();
+    ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(mx, padT); ctx.lineTo(mx, padT + chartH); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'center';
+    const dd = String(hoje.getDate()).padStart(2, '0');
+    const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+    const rotulo = 'ESTAMOS AQUI · ' + dd + '/' + mm + '/' + String(hoje.getFullYear()).slice(2);
+    const lw = ctx.measureText(rotulo).width;
+    let bx = mx;
+    if (bx - lw / 2 - 6 < padL) bx = padL + lw / 2 + 6;
+    if (bx + lw / 2 + 6 > W - padR) bx = W - padR - lw / 2 - 6;
+    ctx.fillStyle = '#f43f5e';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - lw / 2 - 6, padT - 16, lw + 12, 15, 4); ctx.fill(); }
+    else ctx.fillRect(bx - lw / 2 - 6, padT - 16, lw + 12, 15);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(rotulo, bx, padT - 5);
+    ctx.restore();
+  })();
+
+  // Linhas e pontos
+  CONS_SERIES.forEach(s => {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    CONS_DADOS.forEach((d, i) => {
+      const v = d[s.key];
+      if (_isNA(v) || v === '' || isNaN(v)) { iniciado = false; return; }
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    CONS_DADOS.forEach((d, i) => {
+      const v = d[s.key];
+      if (_isNA(v) || v === '' || isNaN(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  // Rótulos de valor com anti-colisão, mesma regra dos outros dois
+  const LH = 11;
+  ctx.font = 'bold 7px Inter,sans-serif';
+  ctx.textAlign = 'center';
+
+  CONS_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    const validadoAbaixo = i >= 7;
+
+    const labels = CONS_SERIES
+      .filter(s => !_isNA(d[s.key]) && d[s.key] !== '' && !isNaN(d[s.key]))
+      .map(s => ({
+        key: s.key,
+        txt: d[s.key] + '%',
+        color: s.color,
+        yPoint: padT + chartH - (d[s.key] / maxVal) * chartH,
+      }));
+
+    const belowLabels = labels.filter(l => validadoAbaixo && l.key === 'prevValid');
+    const aboveLabels = labels.filter(l => !(validadoAbaixo && l.key === 'prevValid'));
+
+    aboveLabels.sort((a, b) => a.yPoint - b.yPoint);
+    aboveLabels.forEach(l => { l.y = l.yPoint - 10; });
+    for (let k = 1; k < aboveLabels.length; k++) {
+      if (aboveLabels[k].y - aboveLabels[k-1].y < LH) {
+        aboveLabels[k].y = aboveLabels[k-1].y + LH;
+      }
+    }
+    if (aboveLabels.length) {
+      const bottomLimit = padT + chartH - 2;
+      const overflow = aboveLabels[aboveLabels.length-1].y - bottomLimit;
+      if (overflow > 0) aboveLabels.forEach(l => l.y -= overflow);
+      const topLimit = padT + 8;
+      if (aboveLabels[0].y < topLimit) {
+        const shift = topLimit - aboveLabels[0].y;
+        aboveLabels.forEach(l => l.y += shift);
+      }
+    }
+    belowLabels.forEach(l => { l.y = l.yPoint + 18; });
+
+    [...aboveLabels, ...belowLabels].forEach(l => {
+      const lw = ctx.measureText(l.txt).width;
+      ctx.fillStyle = 'rgba(3,8,17,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - lw/2 - 3, l.y - 9, lw + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - lw/2 - 3, l.y - 9, lw + 6, 13);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.txt, x, l.y);
+    });
+  });
+
+  CONS_GEO = { padL, step, n };
+  consLigarTooltip();
+}
+
+function initConsolidado() {
+  CONS_DADOS = consCarregar();
+  renderConsTabela();
+  renderConsChart();
+}
+
+// ═════════════════════════════════════════════════════════════
+// HISTÓRICO CENTRAL — réplica do gráfico de grafico-historico-central.html
+// Mesma chave de localStorage da tela dedicada; aqui é somente leitura.
+// A Central usa nomes de campo próprios (ini/ter/prevValidScrum/valid) e tem
+// dois marcos de liberação, em laranja, diferente do Revenue.
+// ═════════════════════════════════════════════════════════════
+const CEN_KEY = 'nexus_central_dados';
+
+// Derivado do padrão que o painel já tem, trocando prevValid -> prevValidScrum
+const CEN_DEFAULT = CENTRAL_DEFAULT.map(d => ({
+  sprint: d.sprint, ini: d.ini, ter: d.ter,
+  prevDesenv: d.prevDesenv, realDesenv: d.realDesenv,
+  prevValidScrum: d.prevValid, valid: d.valid,
+}));
+
+const CEN_SERIES = [
+  { key:'prevDesenv',     color:'#3b82f6' },
+  { key:'realDesenv',     color:'#22c55e' },
+  { key:'prevValidScrum', color:'#a78bfa' },
+  { key:'valid',          color:'#f43f5e' },
+];
+
+// Marcos de liberação para teste (laranja), fixos no cronograma da Central
+const CEN_MARCOS = [
+  { data:'09/04/2026', label:'Liberado para teste' },
+  { data:'17/08/2026', label:'Liberado para teste' },
+];
+
+let CEN_DADOS = [];
+let CEN_GEO = null;
+let CEN_TIP_ON = false;
+
+function cenCarregar() {
+  try {
+    const saved = localStorage.getItem(CEN_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(CEN_DEFAULT));
+}
+
+function toggleCenTabela() {
+  const box = document.getElementById('cen-collapse');
+  const arrow = document.getElementById('cen-arrow');
+  if (!box) return;
+  const aberto = box.style.display !== 'none';
+  box.style.display = aberto ? 'none' : 'block';
+  if (arrow) arrow.style.transform = aberto ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function renderCenTabela() {
+  const tb = document.getElementById('cen-tbody');
+  if (!tb) return;
+  const pct = v => _isNA(v) ? 'NA' : v + '%';
+  tb.innerHTML = CEN_DADOS.map(d => `
+    <tr>
+      <td class="sp-sprint">${d.sprint || ''}</td>
+      <td>${d.ini || ''}</td>
+      <td>${d.ter || ''}</td>
+      <td class="sp-b">${pct(d.prevDesenv)}</td>
+      <td class="sp-g">${pct(d.realDesenv)}</td>
+      <td class="sp-p">${pct(d.prevValidScrum)}</td>
+      <td class="sp-r">${pct(d.valid)}</td>
+    </tr>`).join('');
+}
+
+function cenLigarTooltip() {
+  if (CEN_TIP_ON) return;
+  const canvas = document.getElementById('cen-canvas');
+  const tip = document.getElementById('cen-tip');
+  if (!canvas || !tip) return;
+  CEN_TIP_ON = true;
+
+  const fmt = v => _isNA(v) ? 'NA' : v + '%';
+  const dev = (r, p) => (_isNA(r) || _isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#64748b'
+    : d >= -5 ? '#22c55e' : d >= -10 ? '#eab308' : d >= -15 ? '#f43f5e' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="rt-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CEN_GEO) return;
+    // O canvas é escalado pelo CSS, então a posição do mouse precisa voltar
+    // para o espaço lógico antes de ser comparada com a geometria do desenho.
+    const { x: mx, escala, rect: r } = mouseParaLogico(ev, canvas, SP_LOG_W);
+    const { padL, step, n } = CEN_GEO;
+
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = CEN_DADOS[idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.ter).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dev(d.realDesenv, d.prevDesenv);
+    const devVal = dev(d.valid, d.prevValidScrum);
+
+    tip.innerHTML =
+      `<div class="rt-data">${d.sprint} · ${dataCurta}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#3b82f6') +
+      linha('Realizado', fmt(d.realDesenv), '#22c55e') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="rt-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValidScrum), '#a78bfa') +
+      linha('Validado Real', fmt(d.valid), '#f43f5e') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    // Volta para px de tela para posicionar o tooltip
+    const xTela = (padL + step * idx) * escala;
+    let left = xTela + 14;
+    if (left + tw > r.width) left = xTela - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+function renderCenChart() {
+  const canvas = document.getElementById('cen-canvas');
+  if (!canvas || !canvas.getContext) return;
+  const container = document.getElementById('cen-chart-container');
+  if (!container) return;
+
+  // Espaço lógico fixo: independe da largura da janela e da página impressa
+  const W = SP_LOG_W, H = SP_LOG_H;
+  const ctx = prepararCanvasLogico(canvas, W, H);
+
+  const padL = 44, padR = 20, padT = 20, padB = 44;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = CEN_DADOS.length;
+  if (n < 2) return;
+  const step = chartW / (n - 1);
+  const maxVal = 100;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = corDeFundoEfetiva(container);
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid + eixo Y — mesmas cores da tela grafico-historico-central.html, para o
+  // gráfico embutido sair idêntico ao da tela dedicada na impressão.
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#5f7590'; ctx.font = '8px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  // Rótulos do eixo X. O original removia o dia da semana com /^\w+\.\s/, que
+  // falha em "sáb." porque \w não casa acento; aqui cortamos tudo antes do
+  // primeiro dígito, que funciona para qualquer dia.
+  CEN_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b0bfd0'; ctx.font = '8px Inter,sans-serif';
+    ctx.fillText(d.sprint || '', x, H - 22);
+    ctx.fillStyle = '#5f7590'; ctx.font = '7px Inter,sans-serif';
+    ctx.fillText(String(d.ter || '').replace(/^[^\d]*/, ''), x, H - 8);
+  });
+
+  function posicaoMarco(dataStr) {
+    const alvo = revParseData(dataStr);
+    if (!alvo) return null;
+    const datas = CEN_DADOS.map(d => revParseData(d.ter));
+    if (!datas[0] || !datas[datas.length - 1]) return null;
+    if (alvo <= datas[0]) return 0;
+    if (alvo >= datas[datas.length - 1]) return datas.length - 1;
+    for (let i = 0; i < datas.length - 1; i++) {
+      if (datas[i] && datas[i + 1] && alvo >= datas[i] && alvo <= datas[i + 1]) {
+        return i + (alvo - datas[i]) / (datas[i + 1] - datas[i]);
+      }
+    }
+    return null;
+  }
+
+  // Etiqueta de marco. Os marcos de liberação ficam logo abaixo do topo do
+  // grid; o "ESTAMOS AQUI" fica acima, para os dois não se sobreporem.
+  function desenhaMarco(pos, rotulo, cor, corTexto, acimaDoGrid) {
+    if (pos === null) return;
+    const mx = padL + step * pos;
+    ctx.save();
+    ctx.strokeStyle = cor; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(mx, padT); ctx.lineTo(mx, padT + chartH); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'center';
+    const lw = ctx.measureText(rotulo).width;
+    let bx = mx;
+    if (bx - lw/2 - 6 < padL) bx = padL + lw/2 + 6;
+    if (bx + lw/2 + 6 > W - padR) bx = W - padR - lw/2 - 6;
+    const topo = acimaDoGrid ? padT - 16 : padT - 2;
+    const alt  = acimaDoGrid ? 15 : 16;
+    const baseTexto = acimaDoGrid ? padT - 5 : padT + 9;
+    ctx.fillStyle = cor;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - lw/2 - 6, topo, lw + 12, alt, 4); ctx.fill(); }
+    else ctx.fillRect(bx - lw/2 - 6, topo, lw + 12, alt);
+    ctx.fillStyle = corTexto;
+    ctx.fillText(rotulo, bx, baseTexto);
+    ctx.restore();
+  }
+
+  CEN_MARCOS.forEach(mk => {
+    desenhaMarco(posicaoMarco(mk.data), mk.label + ' ' + mk.data, '#fb923c', '#0b1120', false);
+  });
+
+  const hojeCen = new Date();
+  const ddC = String(hojeCen.getDate()).padStart(2, '0');
+  const mmC = String(hojeCen.getMonth() + 1).padStart(2, '0');
+  const aaaaC = hojeCen.getFullYear();
+  desenhaMarco(posicaoMarco(`${ddC}/${mmC}/${aaaaC}`),
+    'ESTAMOS AQUI · ' + `${ddC}/${mmC}/${String(aaaaC).slice(2)}`, '#f43f5e', '#ffffff', true);
+
+  // Linhas e pontos
+  CEN_SERIES.forEach(s => {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    CEN_DADOS.forEach((d, i) => {
+      const v = d[s.key];
+      if (_isNA(v) || v === '' || isNaN(v)) { iniciado = false; return; }
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    CEN_DADOS.forEach((d, i) => {
+      const v = d[s.key];
+      if (_isNA(v) || v === '' || isNaN(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  // Rótulos de valor com anti-colisão
+  const LH = 11;
+  ctx.font = 'bold 7px Inter,sans-serif';
+  ctx.textAlign = 'center';
+
+  CEN_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    // Na Central o rótulo de Prev. Validado desce a partir do Sprint 8
+    const validadoAbaixo = i >= 7;
+
+    const labels = CEN_SERIES
+      .filter(s => !_isNA(d[s.key]) && d[s.key] !== '' && !isNaN(d[s.key]))
+      .map(s => ({
+        key: s.key,
+        txt: d[s.key] + '%',
+        color: s.color,
+        yPoint: padT + chartH - (d[s.key] / maxVal) * chartH,
+      }));
+
+    const belowLabels = labels.filter(l => validadoAbaixo && l.key === 'prevValidScrum');
+    const aboveLabels = labels.filter(l => !(validadoAbaixo && l.key === 'prevValidScrum'));
+
+    aboveLabels.sort((a, b) => a.yPoint - b.yPoint);
+    aboveLabels.forEach(l => { l.y = l.yPoint - 10; });
+    for (let k = 1; k < aboveLabels.length; k++) {
+      if (aboveLabels[k].y - aboveLabels[k-1].y < LH) {
+        aboveLabels[k].y = aboveLabels[k-1].y + LH;
+      }
+    }
+    if (aboveLabels.length) {
+      const bottomLimit = padT + chartH - 2;
+      const overflow = aboveLabels[aboveLabels.length-1].y - bottomLimit;
+      if (overflow > 0) aboveLabels.forEach(l => l.y -= overflow);
+      const topLimit = padT + 8;
+      if (aboveLabels[0].y < topLimit) {
+        const shift = topLimit - aboveLabels[0].y;
+        aboveLabels.forEach(l => l.y += shift);
+      }
+    }
+    belowLabels.forEach(l => { l.y = l.yPoint + 18; });
+
+    [...aboveLabels, ...belowLabels].forEach(l => {
+      const lw = ctx.measureText(l.txt).width;
+      // Mesma opacidade do chip da tela dedicada da Central
+      ctx.fillStyle = 'rgba(3,8,17,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - lw/2 - 3, l.y - 9, lw + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - lw/2 - 3, l.y - 9, lw + 6, 13);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.txt, x, l.y);
+    });
+  });
+
+  CEN_GEO = { padL, step, n };
+  cenLigarTooltip();
+}
+
+function initCentral() {
+  CEN_DADOS = cenCarregar();
+  renderCenTabela();
+  renderCenChart();
+}
+
+// ═════════════════════════════════════════════════════════════
+// HISTÓRICO REVENUE — réplica do gráfico de grafico-historico-revenue.html
+// Lê a mesma chave de localStorage, então acompanha o que for editado lá.
+// Aqui é somente leitura: inclusão e edição continuam na tela dedicada.
+// Tudo com prefixo rev/REV para não colidir com os globais do painel.
+// ═════════════════════════════════════════════════════════════
+const REV_KEY = 'nexus_revenue_sprints';
+
+// O painel guarda os mesmos sprints com nomes de campo próprios (ini/ter/
+// prevValid/valid). Derivamos o padrão da tela Revenue a partir dele em vez de
+// repetir as 14 linhas, que sairiam de sincronia na primeira edição.
+const REV_DEFAULT = REVENUE_DEFAULT.map(d => ({
+  sprint: d.sprint, inicio: d.ini, termino: d.ter,
+  prevDesenv: d.prevDesenv, realDesenv: d.realDesenv,
+  prevValidado: d.prevValid, validado: d.valid,
+}));
+
+const REV_SERIES = [
+  { key:'prevDesenv',   color:'#3b82f6' },
+  { key:'realDesenv',   color:'#22c55e' },
+  { key:'prevValidado', color:'#a78bfa' },
+  { key:'validado',     color:'#f43f5e' },
+];
+
+let REV_DADOS = [];
+let REV_GEO = null;
+let REV_TIP_ON = false;
+
+function revCarregar() {
+  try {
+    const saved = localStorage.getItem(REV_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(REV_DEFAULT));
+}
+
+// Colapso dos dados detalhados (começa fechado)
+function toggleRevTabela() {
+  const box = document.getElementById('rev-collapse');
+  const arrow = document.getElementById('rev-arrow');
+  if (!box) return;
+  const aberto = box.style.display !== 'none';
+  box.style.display = aberto ? 'none' : 'block';
+  if (arrow) arrow.style.transform = aberto ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function renderRevTabela() {
+  const tb = document.getElementById('rev-tbody');
+  if (!tb) return;
+  const pct = v => _isNA(v) ? 'NA' : v + '%';
+  tb.innerHTML = REV_DADOS.map(d => `
+    <tr>
+      <td class="sp-sprint">${d.sprint || ''}</td>
+      <td>${d.inicio || ''}</td>
+      <td>${d.termino || ''}</td>
+      <td class="sp-b">${pct(d.prevDesenv)}</td>
+      <td class="sp-g">${pct(d.realDesenv)}</td>
+      <td class="sp-p">${pct(d.prevValidado)}</td>
+      <td class="sp-r">${pct(d.validado)}</td>
+    </tr>`).join('');
+}
+
+function revLigarTooltip() {
+  if (REV_TIP_ON) return;
+  const canvas = document.getElementById('rev-canvas');
+  const tip = document.getElementById('rev-tip');
+  if (!canvas || !tip) return;
+  REV_TIP_ON = true;
+
+  const fmt = v => _isNA(v) ? 'NA' : v + '%';
+  const dev = (r, p) => (_isNA(r) || _isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#64748b'
+    : d >= -5 ? '#22c55e' : d >= -10 ? '#eab308' : d >= -15 ? '#f43f5e' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="rt-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!REV_GEO) return;
+    const { x: mx, escala, rect: r } = mouseParaLogico(ev, canvas, SP_LOG_W);
+    const { padL, step, n } = REV_GEO;
+
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = REV_DADOS[idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.termino).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dev(d.realDesenv, d.prevDesenv);
+    const devVal = dev(d.validado, d.prevValidado);
+
+    tip.innerHTML =
+      `<div class="rt-data">${d.sprint} · ${dataCurta}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#3b82f6') +
+      linha('Realizado', fmt(d.realDesenv), '#22c55e') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="rt-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValidado), '#a78bfa') +
+      linha('Validado Real', fmt(d.validado), '#f43f5e') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    const xTela = (padL + step * idx) * escala;
+    let left = xTela + 14;
+    if (left + tw > r.width) left = xTela - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+// Converte "qua. 07/01/26" ou "07/01/2026" em Date
+function revParseData(str) {
+  const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+  if (!m) return null;
+  let ano = parseInt(m[3], 10);
+  if (ano < 100) ano += 2000;
+  return new Date(ano, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+}
+
+function renderRevChart() {
+  const canvas = document.getElementById('rev-canvas');
+  if (!canvas || !canvas.getContext) return;
+  const container = document.getElementById('rev-chart-container');
+  if (!container) return;
+
+  // Espaço lógico fixo, como no Central: sem dependência da largura da janela,
+  // o que elimina a distorção do gráfico na impressão.
+  const W = SP_LOG_W, H = SP_LOG_H;
+  const ctx = prepararCanvasLogico(canvas, W, H);
+
+  const padL = 44, padR = 24, padT = 20, padB = 46;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = REV_DADOS.length;
+  if (n < 2) return;
+  const step = chartW / (n - 1);
+  const maxVal = 100;
+
+  // Fundo pintado: canvas transparente sai branco na impressão
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = corDeFundoEfetiva(container);
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid horizontal + eixo Y — mesmas cores de grafico-historico-revenue.html
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#5f7590'; ctx.font = '8px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  // Rótulos do eixo X: nome do sprint + data do término
+  REV_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.textAlign = 'center';
+    // Mesma fonte e mesma cor do gráfico da Central
+    ctx.fillStyle = '#b0bfd0'; ctx.font = '8px Inter,sans-serif';
+    ctx.fillText(d.sprint || '', x, H - 22);
+    const dt = (String(d.termino).match(/\d{2}\/\d{2}\/\d{2}/) || [''])[0];
+    ctx.fillStyle = '#5f7590'; ctx.font = '7px Inter,sans-serif';
+    ctx.fillText(dt, x, H - 9);
+  });
+
+  function drawLine(key, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    REV_DADOS.forEach((d, i) => {
+      const v = d[key];
+      if (_isNA(v)) { iniciado = false; return; }   // NA interrompe a linha
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    REV_DADOS.forEach((d, i) => {
+      const v = d[key];
+      if (_isNA(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  // Posição (índice fracionário) de uma data, interpolada entre os términos
+  function posicaoMarco(alvo) {
+    if (!alvo) return null;
+    const datas = REV_DADOS.map(d => revParseData(d.termino));
+    if (!datas[0] || !datas[datas.length - 1]) return null;
+    if (alvo <= datas[0]) return 0;
+    if (alvo >= datas[datas.length - 1]) return datas.length - 1;
+    for (let i = 0; i < datas.length - 1; i++) {
+      if (datas[i] && datas[i + 1] && alvo >= datas[i] && alvo <= datas[i + 1]) {
+        return i + (alvo - datas[i]) / (datas[i + 1] - datas[i]);
+      }
+    }
+    return null;
+  }
+
+  function desenhaMarco(pos, nome, data, cor, texto) {
+    if (pos === null) return;
+    const mx = padL + step * pos;
+    ctx.save();
+    ctx.strokeStyle = cor; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(mx, padT); ctx.lineTo(mx, padT + chartH); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'center';
+    const rotulo = nome + ' · ' + data;
+    const larg = ctx.measureText(rotulo).width;
+    let bx = mx;
+    if (bx - larg/2 - 6 < padL) bx = padL + larg/2 + 6;
+    if (bx + larg/2 + 6 > W - padR) bx = W - padR - larg/2 - 6;
+    ctx.fillStyle = cor;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - larg/2 - 6, padT - 16, larg + 12, 15, 4); ctx.fill(); }
+    else ctx.fillRect(bx - larg/2 - 6, padT - 16, larg + 12, 15);
+    ctx.fillStyle = texto;
+    ctx.fillText(rotulo, bx, padT - 5);
+    ctx.restore();
+  }
+
+  // Marco fixo: liberação para teste no término do Sprint 12
+  const idxDeploy = REV_DADOS.findIndex(d =>
+    String(d.inicio).includes('20/07/26') || String(d.termino).includes('20/07/26'));
+  if (idxDeploy >= 0) desenhaMarco(idxDeploy, 'Liberado para teste', '20/07/26', '#eab308', '#05231a');
+
+  // Marco móvel: a data de hoje
+  const hojeRev = new Date();
+  const ddR = String(hojeRev.getDate()).padStart(2, '0');
+  const mmR = String(hojeRev.getMonth() + 1).padStart(2, '0');
+  const aaR = String(hojeRev.getFullYear()).slice(2);
+  desenhaMarco(posicaoMarco(hojeRev), 'ESTAMOS AQUI', `${ddR}/${mmR}/${aaR}`, '#f43f5e', '#ffffff');
+
+  // Linhas e pontos por cima dos marcos
+  REV_SERIES.forEach(s => drawLine(s.key, s.color));
+
+  // Rótulos de valor com anti-colisão por coluna
+  const LH = 11;
+  ctx.font = 'bold 7px Inter,sans-serif';
+  ctx.textAlign = 'center';
+
+  REV_DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    // A partir do Sprint 5 o rótulo de Prev. Validado desce, senão colide
+    const validadoAbaixo = i >= 4;
+
+    const labels = REV_SERIES.filter(s => !_isNA(d[s.key])).map(s => ({
+      key: s.key,
+      txt: d[s.key] + '%',
+      color: s.color,
+      yPoint: padT + chartH - (d[s.key] / maxVal) * chartH,
+    }));
+
+    const belowLabels = labels.filter(l => validadoAbaixo && l.key === 'prevValidado');
+    const aboveLabels = labels.filter(l => !(validadoAbaixo && l.key === 'prevValidado'));
+
+    aboveLabels.sort((a, b) => a.yPoint - b.yPoint);
+    aboveLabels.forEach(l => { l.y = l.yPoint - 10; });
+    for (let k = 1; k < aboveLabels.length; k++) {
+      if (aboveLabels[k].y - aboveLabels[k-1].y < LH) {
+        aboveLabels[k].y = aboveLabels[k-1].y + LH;
+      }
+    }
+    if (aboveLabels.length) {
+      const bottomLimit = padT + chartH - 2;
+      const overflow = aboveLabels[aboveLabels.length-1].y - bottomLimit;
+      if (overflow > 0) aboveLabels.forEach(l => l.y -= overflow);
+      const topLimit = padT + 8;
+      if (aboveLabels[0].y < topLimit) {
+        const shift = topLimit - aboveLabels[0].y;
+        aboveLabels.forEach(l => l.y += shift);
+      }
+    }
+    belowLabels.forEach(l => { l.y = l.yPoint + 18; });
+
+    [...aboveLabels, ...belowLabels].forEach(l => {
+      const larg = ctx.measureText(l.txt).width;
+      // Mesma opacidade do chip da tela dedicada do Revenue
+      ctx.fillStyle = 'rgba(11,17,32,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - larg/2 - 3, l.y - 9, larg + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - larg/2 - 3, l.y - 9, larg + 6, 13);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.txt, x, l.y);
+    });
+  });
+
+  REV_GEO = { padL, step, n };
+  revLigarTooltip();
+}
+
+function initRevenue() {
+  REV_DADOS = revCarregar();
+  renderRevTabela();
+  renderRevChart();
+}
+function _media(a, b) {
+  const va = _isNA(a) ? null : Number(a);
+  const vb = _isNA(b) ? null : Number(b);
+  if (va === null && vb === null) return null;
+  if (va === null) return Math.round(vb);
+  if (vb === null) return Math.round(va);
+  return Math.round((va + vb) / 2);
+}
+// Converte "ter. 20/01/26" -> "2026-01-20" (para ordenação e eixo do gráfico)
+function _terParaISO(str) {
+  const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2})/);
+  if (!m) return '';
+  return '20' + m[3] + '-' + m[2] + '-' + m[1];
+}
+
+// Carrega dados salvos (Central/Revenue) ou usa o padrão
+function _carregarSprints(key, def, campos) {
+  try {
+    const s = localStorage.getItem(key);
+    if (s) {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr) && arr.length) {
+        return arr.map(d => ({
+          sprint: d.sprint,
+          ini:    d[campos.ini],
+          ter:    d[campos.ter],
+          prevDesenv: d.prevDesenv, realDesenv: d.realDesenv,
+          prevValid:  d[campos.prevValid], valid: d[campos.valid],
+        }));
+      }
+    }
+  } catch (e) {}
+  return def;
+}
+
+// Fonte de dados compartilhada entre o gráfico e a tabela de sprints.
+// Cada item traz: sprint, ini, ter, dataRef e os valores PONDERADOS (previsto/realizado).
+function obterFonteHistorico() {
+  const central = _carregarSprints('nexus_central_dados', CENTRAL_DEFAULT,
+    { ini:'ini', ter:'ter', prevValid:'prevValidScrum', valid:'valid' });
+  const revenue = _carregarSprints('nexus_revenue_sprints', REVENUE_DEFAULT,
+    { ini:'inicio', ter:'termino', prevValid:'prevValidado', valid:'validado' });
+
+  const maxLen = Math.max(central.length, revenue.length);
+  const linhas = [];
+  for (let i = 0; i < maxLen; i++) {
+    const c = central[i] || {};
+    const r = revenue[i] || {};
+    const prevDesenv = _media(c.prevDesenv, r.prevDesenv);
+    const realDesenv = _media(c.realDesenv, r.realDesenv);
+    const prevValid  = _media(c.prevValid,  r.prevValid);
+    const valid      = _media(c.valid,      r.valid);
+    // Geral = média entre desenvolvimento e validação; ponderado = geral * peso
+    const prevGeral = _media(prevDesenv, prevValid);
+    const realGeral = _media(realDesenv, valid);
+    // Números inteiros (arredondamento padrão). Preserva null (NA) para que o
+    // gráfico pare de plotar nesses pontos. O desvio sai da diferença já arredondada.
+    const prevPond = prevGeral === null ? null : Math.round(prevGeral * PESO_PONDERADO);
+    const realPond = realGeral === null ? null : Math.round(realGeral * PESO_PONDERADO);
+    const ter = c.ter || r.ter || '';
+    linhas.push({
+      sprint:    c.sprint || r.sprint || ('Sprint ' + (i + 1)),
+      ini:       c.ini || r.ini || '',
+      ter:       ter,
+      dataRef:   _terParaISO(ter),
+      previsto:  prevPond,
+      realizado: realPond,
+    });
+  }
+  return linhas.sort((a, b) => (a.dataRef || '').localeCompare(b.dataRef || ''));
+}
+
+// Tabela com o detalhe de cada sprint
+function renderSprintsTable() {
+  const tbody = document.getElementById('sprints-tbody');
+  if (!tbody) return;
+  const sorted = obterFonteHistorico();
+
+  // Índice da última sprint que possui realizado (não-NA) = sprint atual
+  const ehNulo = v => v === null || v === undefined;
+  let idxAtual = -1;
+  for (let i = sorted.length - 1; i >= 0; i--) { if (!ehNulo(sorted[i].realizado)) { idxAtual = i; break; } }
+
+  tbody.innerHTML = sorted.map((h, i) => {
+    const prevNulo = ehNulo(h.previsto);
+    const realNulo = ehNulo(h.realizado);
+    const prev = prevNulo ? 0 : parseFloat(h.previsto);    // % Prev. Ponderado
+    const real = realNulo ? 0 : parseFloat(h.realizado);   // % Real. Ponderado
+    const temDev = !prevNulo && !realNulo;
+    const dev  = temDev ? Math.round(real - prev) : null;
+    const devColor = !temDev ? 'var(--muted)' : dev >= -5 ? 'var(--green)' : dev >= -10 ? 'var(--yellow)' : dev >= -15 ? 'var(--red)' : '#c084fc';
+    const zebra = i % 2 === 1 ? 'background:rgba(255,255,255,.02)' : '';
+    const ehAtual = i === idxAtual;
+    const destaque = ehAtual ? 'background:rgba(234,179,8,.08)' : zebra;
+    const celPrev = prevNulo
+      ? `<span style="color:var(--muted)">NA</span>`
+      : `<div style="display:flex;align-items:center;gap:6px">
+          <div style="width:44px;height:5px;background:var(--border2);border-radius:3px;overflow:hidden"><div style="width:${Math.min(prev*2,100)}%;height:100%;background:var(--blue)"></div></div>
+          <span style="color:var(--blue2);font-weight:700">${Math.round(prev)}%</span>
+        </div>`;
+    const celReal = realNulo
+      ? `<span style="color:var(--muted)">NA</span>`
+      : `<div style="display:flex;align-items:center;gap:6px">
+          <div style="width:44px;height:5px;background:var(--border2);border-radius:3px;overflow:hidden"><div style="width:${Math.min(real*2,100)}%;height:100%;background:var(--green)"></div></div>
+          <span style="color:var(--green);font-weight:700">${Math.round(real)}%</span>
+        </div>`;
+    const celDev = temDev
+      ? `${dev >= 0 ? '+' : ''}${dev} p.p.`
+      : '–';
+    return `<tr style="${destaque};border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-weight:700;color:var(--text)">${h.sprint || ('Sprint ' + (i + 1))}${ehAtual ? ' <span style="font-size:8px;color:#eab308;font-weight:700">• ATUAL</span>' : ''}</td>
+      <td style="padding:7px 10px;color:var(--muted2)">${h.ini || '–'}</td>
+      <td style="padding:7px 10px;color:var(--muted2)">${h.ter || '–'}</td>
+      <td style="padding:7px 10px">${celPrev}</td>
+      <td style="padding:7px 10px">${celReal}</td>
+      <td style="padding:7px 10px;font-weight:700;color:${devColor}">${celDev}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// COLAPSO DAS LINHAS DO DETALHAMENTO
+// ─────────────────────────────────────────────
+// O chevron das linhas pai já existia no HTML chamando toggleRow, mas a função
+// nunca havia sido escrita: clicar só gerava erro no console. Implementada aqui.
+//
+// A hierarquia não está declarada em nenhum campo de parentesco — vem da ordem
+// das linhas e do campo `nivel` (0 = frente, 1 = subfrente, 2 = atividade).
+// O pai de uma linha é a linha anterior mais próxima com nível menor.
+
+function paiDaLinha(i) {
+  const nivel = TABELA_META[i].nivel;
+  for (let k = i - 1; k >= 0; k--) {
+    if (TABELA_META[k].nivel < nivel) return k;
+  }
+  return -1;   // nível 0 não tem pai
+}
+
+// Uma linha é pai quando a seguinte tem nível maior
+function temFilhas(i) {
+  const prox = TABELA_META[i + 1];
+  return !!prox && prox.nivel > TABELA_META[i].nivel;
+}
+
+// Todas as linhas pai começam fechadas, em qualquer nível. Derivado da estrutura
+// em vez de índices fixos: incluir ou remover frentes não exige mexer aqui.
+const LINHAS_FECHADAS = new Set(
+  TABELA_META.map((_, i) => i).filter(temFilhas)
+);
+
+// Visível só se nenhum ancestral estiver fechado. Subir a cadeia inteira (em vez
+// de olhar só o pai direto) é o que faz o comportamento ficar certo quando há
+// pai e avô fechados ao mesmo tempo.
+function linhaVisivel(i) {
+  let p = paiDaLinha(i);
+  while (p >= 0) {
+    if (LINHAS_FECHADAS.has(p)) return false;
+    p = paiDaLinha(p);
+  }
+  return true;
+}
+
+function aplicarColapsoTabela() {
+  const tbody = document.getElementById('tbl-tbody');
+  if (!tbody) return;
+  TABELA_META.forEach((row, i) => {
+    const tr = tbody.querySelector('tr[data-row="' + i + '"]');
+    if (!tr) return;
+    tr.style.display = linhaVisivel(i) ? '' : 'none';
+    const tg = tr.querySelector('.tbl-toggle');
+    if (tg) {
+      const fechada = LINHAS_FECHADAS.has(i);
+      tg.setAttribute('data-open', fechada ? '0' : '1');
+      tg.textContent = fechada ? '▸' : '▾';
+    }
+  });
+}
+
+function toggleRow(i) {
+  if (LINHAS_FECHADAS.has(i)) LINHAS_FECHADAS.delete(i);
+  else LINHAS_FECHADAS.add(i);
+  aplicarColapsoTabela();
+}
+
+// Abre a árvore inteira, inclusive as atividades dentro de Central e Revenue
+function expandirTodasLinhas() {
+  LINHAS_FECHADAS.clear();
+  aplicarColapsoTabela();
+}
+
+// Fecha todos os pais de qualquer nível, voltando ao estado inicial da tabela
+function recolherTodasLinhas() {
+  LINHAS_FECHADAS.clear();
+  TABELA_META.forEach((_, i) => { if (temFilhas(i)) LINHAS_FECHADAS.add(i); });
+  aplicarColapsoTabela();
+}
+
+function toggleSprints() {
+  const box = document.getElementById('sprints-collapse');
+  const arrow = document.getElementById('sprints-arrow');
+  if (!box) return;
+  const isOpen = box.style.display !== 'none';
+  box.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+function renderChart() {
+  const canvas = document.getElementById('chart-historico');
+  const emptyMsg = document.getElementById('chart-empty');
+  if (!canvas || !canvas.getContext) return;
+
+  const sorted = obterFonteHistorico();
+
+  emptyMsg.style.display = 'none';
+  canvas.style.display = 'block';
+
+  const container = document.getElementById('chart-container');
+
+  // Espaço lógico fixo, como nos gráficos Central e Revenue: a proporção deixa
+  // de depender da largura da janela, então o gráfico não achata em tela larga
+  // nem distorce na impressão.
+  const W = SP_LOG_W, H = SP_LOG_H;
+  const ctx = prepararCanvasLogico(canvas, W, H);
+  const padL = 36, padR = 16, padT = 10, padB = 30;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = sorted.length;
+  const step = chartW / (n - 1);
+
+  // Converte valores para número ou null (NA). Onde for null, o gráfico não plota.
+  const paraNum = v => (v === null || v === undefined || v === '' ||
+                        String(v).trim().toUpperCase() === 'NA') ? null : parseFloat(v);
+  const prevVals = sorted.map(h => paraNum(h.previsto));
+  const realVals = sorted.map(h => paraNum(h.realizado));
+
+  // Escala dinâmica: o topo do eixo acompanha o maior valor com ~15% de folga.
+  // O passo do grid se adapta à faixa, para que valores baixos também ocupem
+  // bem o espaço vertical (ex.: máx 12% -> eixo 0–15% em passos de 5).
+  const maiorValor = Math.max(
+    ...prevVals.filter(v => v !== null),
+    ...realVals.filter(v => v !== null),
+    1
+  );
+  const comFolga = maiorValor * 1.15;
+  const passo    = comFolga <= 20 ? 5 : comFolga <= 60 ? 10 : 25;
+  const maxVal   = Math.min(100, Math.ceil(comFolga / passo) * passo);
+  const divisoes = maxVal / passo;
+
+  // Geometria própria (mais folga em cima para o marcador "HOJE")
+  const gL = 40, gR = 20, gT = 28, gB = 30;
+  const gW = W - gL - gR;
+  const gH = H - gT - gB;
+  const gStep = n > 1 ? gW / (n - 1) : gW;
+
+  // Última sprint com realizado preenchido (não-NA) = ponto "HOJE"
+  let idxHoje = -1;
+  for (let i = n - 1; i >= 0; i--) { if (realVals[i] !== null) { idxHoje = i; break; } }
+  if (idxHoje < 0) idxHoje = n - 1;
+
+  const xAt = i => gL + gStep * i;
+  const yAt = v => gT + gH - (v / maxVal) * gH;
+
+  // O canvas é pintado, não transparente. Na tela um canvas transparente mostra
+  // o fundo escuro do painel atrás dele, mas na impressão esse fundo não é
+  // composto sob o canvas e o gráfico sai em branco. Então pintamos o fundo
+  // aqui, com a mesma cor que vale no contexto atual (tela ou impressão).
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = corDeFundoEfetiva(container);
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Grid horizontal + eixo Y ──
+  for (let i = 0; i <= divisoes; i++) {
+    const y = gT + (gH / divisoes) * i;
+    // Opacidade mais alta que o original: a 5% a linha praticamente desaparecia
+    // no papel, deixando o gráfico sem referência de altura.
+    ctx.strokeStyle = i === divisoes ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.11)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#94a3b8'; ctx.font = '7px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.beginPath(); ctx.moveTo(gL, y); ctx.lineTo(W - gR, y); ctx.stroke();
+    ctx.fillText((maxVal - i * passo) + '%', gL - 7, y + 3);
+  }
+
+  // ── Área do desvio (entre previsto e realizado, só onde ambos existem) ──
+  const idxsAmbos = [];
+  for (let i = 0; i < n; i++) if (prevVals[i] !== null && realVals[i] !== null) idxsAmbos.push(i);
+  if (idxsAmbos.length >= 2) {
+    ctx.beginPath();
+    idxsAmbos.forEach((idx, k) => { const x = xAt(idx), y = yAt(prevVals[idx]); k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    for (let k = idxsAmbos.length - 1; k >= 0; k--) { const idx = idxsAmbos[k]; ctx.lineTo(xAt(idx), yAt(realVals[idx])); }
+    ctx.closePath();
+    const ultimoDesvio = realVals[idxHoje] - prevVals[idxHoje];
+    ctx.fillStyle = ultimoDesvio >= -5  ? 'rgba(34,197,94,0.10)'
+                  : ultimoDesvio >= -10 ? 'rgba(234,179,8,0.10)'
+                  : ultimoDesvio >= -15 ? 'rgba(239,68,68,0.10)'
+                  :                       'rgba(192,132,252,0.10)';
+    ctx.fill();
+  }
+
+  // ── Linha vertical no ponto atual ──
+  const xUlt = xAt(idxHoje);
+  ctx.save();
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = 'rgba(234,179,8,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(xUlt, gT - 6); ctx.lineTo(xUlt, gT + gH); ctx.stroke();
+  ctx.restore();
+
+  // ── Eixo X: número da sprint + data ──
+  ctx.textAlign = 'center';
+  sorted.forEach((h, i) => {
+    const [, m, d] = (h.dataRef || '').split('-');
+    const ehUlt = i === idxHoje;
+    // Número da sprint (ex.: "S14")
+    const sNum = String(h.sprint || '').replace(/\D/g, '');
+    const sprintLbl = sNum ? 'S' + sNum : (h.sprint || '');
+    ctx.fillStyle = ehUlt ? '#eab308' : '#b0bfd0';
+    ctx.font = 'bold ' + (ehUlt ? '8px' : '7px') + ' Inter,sans-serif';
+    ctx.fillText(sprintLbl, xAt(i), H - 19);
+    // Data (término)
+    ctx.fillStyle = ehUlt ? '#eab308' : '#5f7590';
+    ctx.font = (ehUlt ? 'bold ' : '') + '6px Inter,sans-serif';
+    ctx.fillText((d || '') + '/' + (m || ''), xAt(i), H - 8);
+  });
+
+  // ── Linhas com área preenchida ──
+  // Exibe o rótulo de porcentagem em todos os pontos
+  const cadaRotulo = 1;
+
+  function desenharSerie(values, cor, corArea) {
+    // índices válidos (não-NA)
+    const idxs = [];
+    for (let i = 0; i < n; i++) if (values[i] !== null) idxs.push(i);
+    if (!idxs.length) return;
+    const priIdx = idxs[0];
+    const ultIdx = idxs[idxs.length - 1];
+
+    // área sob a linha (apenas entre pontos válidos)
+    const grad = ctx.createLinearGradient(0, gT, 0, gT + gH);
+    grad.addColorStop(0, corArea);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    idxs.forEach((idx, k) => { const x = xAt(idx), y = yAt(values[idx]); k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    ctx.lineTo(xAt(ultIdx), gT + gH);
+    ctx.lineTo(xAt(priIdx), gT + gH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // linha (interrompe onde houver NA)
+    ctx.strokeStyle = cor; ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciou = false;
+    for (let i = 0; i < n; i++) {
+      if (values[i] === null) { iniciou = false; continue; }
+      const x = xAt(i), y = yAt(values[i]);
+      if (!iniciou) { ctx.moveTo(x, y); iniciou = true; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // pontos (só nos válidos; destaca o último válido)
+    idxs.forEach(i => {
+      const x = xAt(i), y = yAt(values[i]);
+      const ehUlt = i === ultIdx;
+      if (ehUlt) {
+        ctx.fillStyle = cor + '33';
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#0b1120';
+      ctx.beginPath(); ctx.arc(x, y, ehUlt ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = cor; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, ehUlt ? 5 : 3.5, 0, Math.PI * 2); ctx.stroke();
+    });
+
+  }
+
+  // ── Rótulos de valor em todos os pontos ──
+  function desenharRotulos(values, cor, deslocRotulo) {
+    ctx.textAlign = 'center';
+    let ultIdx = -1;
+    for (let i = n - 1; i >= 0; i--) if (values[i] !== null) { ultIdx = i; break; }
+    values.forEach((v, i) => {
+      if (v === null) return;              // não rotula pontos NA
+      const ehUlt = i === ultIdx;
+      // sempre mostra o último; os demais respeitam o intervalo anti-sobreposição
+      if (!ehUlt && i % cadaRotulo !== 0) return;
+
+      const x = xAt(i);
+      // mantém o rótulo dentro da área do gráfico
+      const y = Math.max(gT + 8, Math.min(yAt(v) + deslocRotulo, gT + gH - 2));
+
+      const txt = v + '%';
+      ctx.font = (ehUlt ? 'bold 9px' : 'bold 7px') + ' Inter,sans-serif';
+      const larg = ctx.measureText(txt).width;
+
+      // chip de fundo para legibilidade sobre as áreas coloridas
+      const chipH = ehUlt ? 14 : 12;
+      ctx.fillStyle = 'rgba(6,11,20,0.94)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x - larg / 2 - 4, y - chipH + 3, larg + 8, chipH, 3);
+      else ctx.rect(x - larg / 2 - 4, y - chipH + 3, larg + 8, chipH);
+      ctx.fill();
+
+      ctx.fillStyle = cor;
+      ctx.fillText(txt, x, y);
+    });
+  }
+
+  desenharSerie(prevVals, '#3b82f6', 'rgba(59,130,246,0.18)');
+  desenharSerie(realVals, '#22c55e', 'rgba(34,197,94,0.18)');
+
+  // Rótulos por último, para nenhuma área cobri-los.
+  // Previsto acima do ponto | Realizado abaixo — evita colisão entre as séries.
+  desenharRotulos(prevVals, '#3b82f6', -9);
+  desenharRotulos(realVals, '#22c55e', 19);
+
+  // A etiqueta "ESTAMOS AQUI" usa sempre a data de hoje.
+  const hojeD = parseData(obterDataHojeISO()) || new Date();
+  const hojeTxt = 'ESTAMOS AQUI ' + String(hojeD.getDate()).padStart(2, '0') + '/' +
+                  String(hojeD.getMonth() + 1).padStart(2, '0') + '/' +
+                  String(hojeD.getFullYear()).slice(-2);
+  ctx.fillStyle = '#eab308';
+  ctx.font = 'bold 6px Inter,sans-serif';
+  ctx.textAlign = 'center';
+  const tw = ctx.measureText(hojeTxt).width + 10;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(xUlt - tw / 2, 6, tw, 14, 4);
+  else ctx.rect(xUlt - tw / 2, 6, tw, 14);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.fillText(hojeTxt, xUlt, 16);
+
+  // ── Guarda geometria para o tooltip ──
+  CHART_STATE = { sorted, prevVals, realVals, xAt, yAt, n, W, H, gT, gH };
+  ligarTooltip();
+
+  // ── Cards de resumo ──
+  renderChartSummary(sorted, prevVals, realVals);
+}
+
+// Estado do gráfico usado pelo tooltip
+let CHART_STATE = null;
+let TOOLTIP_LIGADO = false;
+
+function ligarTooltip() {
+  if (TOOLTIP_LIGADO) return;
+  const canvas = document.getElementById('chart-historico');
+  const tip = document.getElementById('chart-tip');
+  if (!canvas || !tip) return;
+  TOOLTIP_LIGADO = true;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CHART_STATE) return;
+    // O canvas é escalado pelo CSS: converte a posição do mouse para o espaço
+    // lógico do desenho, senão o tooltip aponta para o sprint errado.
+    const { x: mx, escala, rect: r } = mouseParaLogico(ev, canvas, SP_LOG_W);
+    const { sorted, prevVals, realVals, xAt, n } = CHART_STATE;
+
+    // acha o ponto mais próximo
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const d = Math.abs(xAt(i) - mx);
+      if (d < melhor) { melhor = d; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const h = sorted[idx];
+    const p = prevVals[idx], rl = realVals[idx];
+    const [ano, mes, dia] = (h.dataRef || '').split('-');
+    const temDev = p !== null && rl !== null;
+    const dv = temDev ? Math.round(rl - p) : null;
+    const cor = !temDev ? '#94a3b8' : dv >= -5 ? '#22c55e' : dv >= -10 ? '#eab308' : dv >= -15 ? '#ef4444' : '#c084fc';
+
+    tip.innerHTML =
+      `<div style="color:#94a3b8;font-size:10px;margin-bottom:4px">${dia}/${mes}/${ano}</div>` +
+      `<div style="color:#60a5fa">Previsto <strong>${p === null ? 'NA' : p + '%'}</strong></div>` +
+      `<div style="color:#22c55e">Realizado <strong>${rl === null ? 'NA' : rl + '%'}</strong></div>` +
+      `<div style="color:${cor};margin-top:3px;border-top:1px solid rgba(255,255,255,.1);padding-top:3px">Desvio <strong>${temDev ? (dv >= 0 ? '+' : '') + dv + ' p.p.' : '–'}</strong></div>`;
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth;
+    // Volta para px de tela para posicionar o tooltip sobre o ponto
+    const xTela = xAt(idx) * escala;
+    let left = xTela + 12;
+    if (left + tw > r.width) left = xTela - tw - 12;
+    tip.style.left = left + 'px';
+    tip.style.top = '18px';
+  });
+
+  canvas.addEventListener('mouseleave', function () {
+    tip.style.display = 'none';
+  });
+}
+
+function renderChartSummary(sorted, prevVals, realVals) {
+  const el = document.getElementById('chart-summary');
+  if (!el) return;
+  const n = sorted.length;
+  // Considera apenas sprints com previsto e realizado preenchidos (ignora NA)
+  const validos = [];
+  for (let i = 0; i < n; i++) if (realVals[i] !== null && prevVals[i] !== null) validos.push(i);
+  if (!validos.length) { el.innerHTML = ''; return; }
+  const iUlt = validos[validos.length - 1];
+  const iAnt = validos.length > 1 ? validos[validos.length - 2] : iUlt;
+  const pUlt = prevVals[iUlt], rUlt = realVals[iUlt];
+  const dUlt = Math.round(rUlt - pUlt);
+  const dAnt = Math.round(realVals[iAnt] - prevVals[iAnt]);
+  const variacao = dUlt - dAnt;
+  const avanco = Math.round(rUlt - realVals[iAnt]);
+
+  const cor = d => d >= -5 ? 'var(--green)' : d >= -10 ? 'var(--yellow)' : d >= -15 ? 'var(--red)' : '#c084fc';
+  const chip = (rotulo, valor, corTxt, extra) => `
+    <div style="flex:1;min-width:110px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:3px">${rotulo}</div>
+      <div style="font-size:15px;font-weight:800;color:${corTxt}">${valor}</div>
+      ${extra ? `<div style="font-size:9px;color:var(--muted2);margin-top:2px">${extra}</div>` : ''}
+    </div>`;
+
+  el.innerHTML =
+    chip('Desvio atual', (dUlt >= 0 ? '+' : '') + dUlt + ' p.p.', cor(dUlt),
+         dUlt >= 0 ? 'Acima do previsto' : 'Abaixo do previsto') +
+    chip('Tendência', (variacao > 0 ? '↑ Melhorando' : variacao < 0 ? '↓ Piorando' : '→ Estável'),
+         variacao > 0 ? 'var(--green)' : variacao < 0 ? 'var(--red)' : 'var(--muted2)',
+         'vs. registro anterior') +
+    chip('Avanço no período', (avanco >= 0 ? '+' : '') + avanco + ' p.p.', 'var(--green)',
+         'realizado') +
+    chip('Registros', n, 'var(--blue2)', 'no histórico');
+}
+
+function renderHistList() {
+  let historico = [];
+  try { historico = JSON.parse(localStorage.getItem('nexus_historico') || '[]'); } catch (e) {}
+  const el = document.getElementById('hist-list-panel');
+  if (!el) return;
+
+  if (!historico.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px;">Nenhum registro salvo. Clique em "Novo Registro" para começar.</div>';
+    return;
+  }
+
+  const ativoDados = localStorage.getItem('nexus_dados');
+  const ativoId = ativoDados ? JSON.parse(ativoDados).id : null;
+
+  el.innerHTML = historico.slice(0, 20).map(h => {
+    const p = parseFloat(h.previsto) || 0;
+    const r = parseFloat(h.realizado) || 0;
+    const d = r - p;
+    const dColor = d >= -5 ? 'var(--green)' : d >= -10 ? 'var(--yellow)' : d >= -15 ? 'var(--red)' : '#c084fc';
+    const isAtivo = h.id === ativoId;
+    const ativoBadge = isAtivo ? '<span style="background:var(--blue);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;margin-left:6px;">ATIVO</span>' : '';
+    const dataStr = h.dataRef ? formatDateIso(h.dataRef) : '–';
+    const horaStr = h.horaRef || '';
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${isAtivo ? 'rgba(59,130,246,.08)' : 'rgba(255,255,255,.02)'};border:1px solid ${isAtivo ? 'rgba(59,130,246,.3)' : 'var(--border)'};border-radius:8px;font-size:11px;cursor:pointer" onclick="ativarRegistro('${h.id}')">
+      <span style="color:var(--blue2);font-weight:700;min-width:50px">${dataStr}</span>
+      <span style="color:var(--muted);min-width:36px">${horaStr}</span>
+      <span style="color:var(--muted2);flex:1">P:${p}% · R:${r}%</span>
+      <span style="font-weight:700;color:${dColor}">${(d>=0?'+':'')+d}p.p.</span>
+      ${ativoBadge}
+    </div>`;
+  }).join('');
+}
+
+function ativarRegistro(id) {
+  let historico = [];
+  try { historico = JSON.parse(localStorage.getItem('nexus_historico') || '[]'); } catch (e) {}
+  const item = historico.find(h => h.id === id);
+  if (item) {
+    localStorage.setItem('nexus_dados', JSON.stringify(item));
+    const dados = item;
+    render(dados);
+    renderChart();
+    renderHistList();
+  }
+}
+</script>
+</body>
+</html>

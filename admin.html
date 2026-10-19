@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <!-- Sincronização com o banco (Supabase): deve ser o primeiro script da página -->
+  <script src="sync.js" data-modo="admin"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexus – Administração</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0b0f1a;--surface:#111827;--surface2:#1e293b;--card:#1a2235;--border:#1e293b;--border2:#334155;--blue:#3b82f6;--blue2:#60a5fa;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-icon{width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .logo-text small{display:block;font-size:9px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase}
+    .logo-text strong{font-size:18px;font-weight:900}
+    .btn-painel{background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;text-decoration:none}
+    .btn-painel:hover{color:var(--text);border-color:var(--blue)}
+
+    .container{max-width:1000px;margin:0 auto;padding:24px 16px}
+    .page-title{font-size:18px;font-weight:700;margin-bottom:3px}
+    .page-sub{font-size:12px;color:var(--muted2);margin-bottom:20px}
+
+    .date-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .date-bar label{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+    .date-bar input{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 12px;border-radius:6px;font-size:13px}
+    .date-bar input:focus{outline:1px solid var(--blue)}
+    .date-bar .spacer{flex:1}
+    .tag-now{background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid rgba(59,130,246,.3);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap}
+    .tag-now:hover{background:rgba(59,130,246,.25)}
+    .edit-status{font-size:11px;color:var(--muted2)}
+
+    .section{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:18px;overflow:hidden}
+    .section-header{padding:11px 16px;background:#0f172a;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);display:flex;align-items:center;gap:6px}
+    .section-body{padding:16px}
+
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+    .fg{display:flex;flex-direction:column;gap:5px}
+    .fg label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2)}
+    .fg input,.fg select,.fg textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;font-family:inherit}
+    .fg input:focus,.fg select:focus,.fg textarea:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+    .fg textarea{resize:vertical;min-height:56px}
+    .desvio-field{font-weight:700}
+
+    .frente-table{width:100%;border-collapse:collapse;font-size:12px}
+    .frente-table th{background:#0f172a;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border2)}
+    .frente-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+    .frente-table tr:last-child td{border-bottom:none}
+    .fr-acao{background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);
+      width:24px;height:24px;border-radius:5px;font-size:12px;cursor:pointer;line-height:1;
+      padding:0;margin-right:4px;font-family:inherit}
+    .fr-acao:hover{border-color:var(--blue);color:var(--blue2)}
+    .fr-acao-del:hover{border-color:var(--red);color:var(--red)}
+    .fname{font-weight:600;color:var(--text)}
+    .fsub{font-size:11px;color:var(--muted2)}
+    .pct-input{width:68px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;text-align:center}
+    .pct-input:focus{outline:1px solid var(--blue)}
+    .text-input{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:11px;text-align:center}
+    .text-input:focus{outline:1px solid var(--blue)}
+    .name-input{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;width:100%}
+    .name-input:focus{outline:1px solid var(--blue)}
+    .status-sel{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:11px}
+    .desvio-cell{font-weight:700;font-size:11px}
+    .dev-neg{color:var(--red)}.dev-pos{color:var(--green)}.dev-zero{color:var(--muted2)}
+    .dur-cell{font-size:11px;color:var(--muted2);font-weight:600}
+
+    .text-list{display:flex;flex-direction:column;gap:8px}
+    .text-item{display:flex;gap:8px;align-items:flex-start}
+    .text-item textarea{flex:1}
+    /* Risco com responsável, prazo e status */
+    .risco-item{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:9px}
+    .risco-main{flex:1;display:flex;flex-direction:column;gap:7px;min-width:0}
+    .risco-main label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:3px}
+    .risco-main textarea{flex:none;width:100%;background:var(--card);border:1px solid var(--border2);color:var(--text);
+      padding:7px 10px;border-radius:5px;font-size:12px;font-family:inherit;resize:vertical;min-height:48px}
+    .risco-main textarea:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+    .risco-topo{display:grid;grid-template-columns:92px 1fr;gap:7px;align-items:start}
+    .risco-idbox .r-id{width:100%;background:var(--card);border:1px solid var(--border2);color:var(--text);
+      padding:7px 8px;border-radius:5px;font-size:12px;font-weight:700;text-align:center;font-family:inherit}
+    .risco-idbox .r-id:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+    .risco-txtbox{min-width:0}
+
+    /* Plano de ação: N ações por risco */
+    .risco-acoes{border-top:1px dashed var(--border2);padding-top:9px;margin-top:2px}
+    .acoes-hdr{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--green);
+      font-weight:700;margin-bottom:6px}
+    .acao-grid{display:grid;grid-template-columns:24px 1fr 150px 118px 118px 140px 26px;
+      gap:6px;align-items:start}
+    .acao-head{font-size:8.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+      padding-bottom:3px;border-bottom:1px solid var(--border2);margin-bottom:5px}
+    .acao-head span{display:block;padding:0 2px}
+    .acao-row{margin-bottom:5px}
+    .acao-num{font-size:11px;font-weight:700;color:var(--muted2);text-align:center;padding-top:7px}
+    .acao-row textarea,.acao-row input,.acao-row select{width:100%;background:var(--card);
+      border:1px solid var(--border2);color:var(--text);padding:6px 8px;border-radius:5px;
+      font-size:11.5px;font-family:inherit}
+    .acao-row textarea{resize:vertical;min-height:34px;line-height:1.35}
+    .acao-row textarea:focus,.acao-row input:focus,.acao-row select:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+    .btn-rem-acao{background:none;border:1px solid var(--border2);color:var(--muted);border-radius:5px;
+      padding:6px 0;font-size:10px;cursor:pointer;margin-top:1px}
+    .btn-rem-acao:hover{border-color:var(--red);color:var(--red)}
+    .btn-add-acao{background:none;border:1px dashed var(--border2);color:var(--muted2);
+      padding:6px 12px;border-radius:5px;font-size:10.5px;cursor:pointer;margin-top:2px}
+    .btn-add-acao:hover{border-color:var(--green);color:var(--green)}
+    .acoes-vazio{font-size:10.5px;color:var(--muted);font-style:italic;margin-bottom:6px}
+
+    @media (max-width:1100px){
+      .risco-topo{grid-template-columns:1fr}
+      .acao-head{display:none}
+      .acao-grid{grid-template-columns:1fr}
+      .acao-num{text-align:left;padding:0}
+      .acao-row{border:1px solid var(--border2);border-radius:6px;padding:8px;margin-bottom:8px}
+    }
+    .icon-pick{background:var(--card);border:1px solid var(--border2);color:var(--text);
+      border-radius:5px;padding:6px 4px;font-size:16px;line-height:1;cursor:pointer;
+      width:52px;text-align:center;flex-shrink:0}
+    .icon-pick:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+    .btn-rem{background:none;border:1px solid var(--border2);color:var(--muted);padding:6px 10px;border-radius:5px;cursor:pointer;font-size:12px}
+    .btn-rem:hover{border-color:var(--red);color:var(--red)}
+    .btn-add{background:none;border:1px dashed var(--border2);color:var(--muted2);padding:8px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;margin-top:6px}
+    .btn-add:hover{border-color:var(--blue2);color:var(--blue2)}
+
+    .hist-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+    .hist-filter{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:5px;font-size:12px}
+    .hist-filter:focus{outline:1px solid var(--blue)}
+    .hist-count{font-size:11px;color:var(--muted2);margin-left:auto}
+    .hist-list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+    .hist-day-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:6px 0 4px}
+    .hist-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;transition:border-color .15s}
+    .hist-item:hover{border-color:var(--blue)}
+    .hist-item.active{border-color:var(--blue);background:rgba(59,130,246,.08)}
+    .hi-time{color:var(--blue2);font-weight:700;min-width:44px}
+    .hi-vals{color:var(--muted2);font-size:11px;flex:1}
+    .hi-desvio{font-size:11px;font-weight:700;min-width:55px;text-align:right}
+    .hi-desvio.neg{color:var(--red)}.hi-desvio.pos{color:var(--green)}
+    .hi-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px}
+    .hi-del:hover{color:var(--red)}
+    .hi-load{background:none;border:1px solid var(--border2);color:var(--muted2);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap}
+    .hi-load:hover{color:var(--text);border-color:var(--blue2)}
+
+    .actions{display:flex;gap:12px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+    .btn-cancel{background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:10px 20px;border-radius:7px;font-size:13px;cursor:pointer}
+    .btn-cancel:hover{color:var(--text)}
+    .btn-save{background:var(--blue);border:none;color:#fff;padding:10px 24px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer}
+    .btn-save:hover{background:var(--blue2)}
+    .btn-view{background:var(--green);border:none;color:#fff;padding:10px 20px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}
+
+    #toast{position:fixed;bottom:20px;right:20px;background:var(--green);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
+    #toast.show{opacity:1;transform:translateY(0)}
+    #toast.error{background:var(--red)}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <img src="LOGO MV.png" alt="Logo Nexus" style="height:40px;width:auto;"/>
+    </div>
+    <div class="logo-text">
+      <small>Projeto</small>
+      <strong>NEXUS</strong>
+    </div>
+  </div>
+  <a class="btn-painel" href="painel-nexus.html" target="_blank">↗ Ver Painel</a>
+</header>
+
+<div class="container">
+  <div class="page-title">Atualização de Dados</div>
+  <div class="page-sub">Registre quantas atualizações quiser por dia. Cada registro é salvo com data e hora. <span class="edit-status" id="edit-status"></span></div>
+
+  <!-- DATA E HORA -->
+  <div class="date-bar">
+    <label>Data</label>
+    <input type="date" id="data-ref"/>
+    <label>Hora</label>
+    <input type="time" id="hora-ref"/>
+    <button class="tag-now" onclick="setAgora()">🕐 Agora</button>
+    <div class="spacer"></div>
+  </div>
+
+  <!-- GRÁFICOS HISTÓRICOS POR SPRINT -->
+  <div class="section">
+    <div class="section-header">📈 Gráficos Históricos por Sprint</div>
+    <div class="section-body">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+        Acesse e gerencie a evolução por sprint de cada frente. Os dados são salvos no servidor e alimentam os respectivos gráficos.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <a href="grafico-historico-central.html" target="_blank" class="grafico-link" style="display:flex;flex-direction:column;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:16px;text-decoration:none;border-left:3px solid #3b82f6">
+          <span style="font-size:20px">🔷</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Central</span>
+          <span style="font-size:11px;color:var(--muted)">Desenvolvimento e validação por sprint</span>
+        </a>
+        <a href="grafico-historico-revenue.html" target="_blank" class="grafico-link" style="display:flex;flex-direction:column;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:16px;text-decoration:none;border-left:3px solid #fb923c">
+          <span style="font-size:20px">💰</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Revenue</span>
+          <span style="font-size:11px;color:var(--muted)">Desenvolvimento e validação por sprint</span>
+        </a>
+        <a href="grafico-historico-consolidado.html" target="_blank" class="grafico-link" style="display:flex;flex-direction:column;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:16px;text-decoration:none;border-left:3px solid #a78bfa">
+          <span style="font-size:20px">📊</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Consolidado</span>
+          <span style="font-size:11px;color:var(--muted)">Central + Revenue por sprint</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs GLOBAIS -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>📊 KPIs Globais</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a onclick="abrirHistoricoProgresso()" style="color:var(--blue);font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;text-decoration:underline;">🕒 Ver histórico</a>
+        <button onclick="salvarKPIs()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar KPIs</button>
+        <button onclick="limparKPIs()" style="background:transparent;border:1px solid var(--red,#f25c5c);color:var(--red,#f25c5c);padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">🗑️ Limpar KPIs</button>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="fg"><label>Progresso Previsto (%)</label><input type="number" id="kpi-previsto" min="0" max="100" step="1" placeholder="47" oninput="calcDesvioGlobal()"/></div>
+        <div class="fg"><label>Progresso Realizado (%)</label><input type="number" id="kpi-realizado" min="0" max="100" step="1" placeholder="33" oninput="calcDesvioGlobal()"/></div>
+        <div class="fg"><label>Desvio (automático)</label><input type="text" id="kpi-desvio" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Data de Início</label><input type="text" id="kpi-inicio" placeholder="15/12/2025" oninput="calcDuracaoTotal()"/></div>
+        <div class="fg"><label>Término Previsto</label><input type="text" id="kpi-termino" placeholder="27/05/2027" oninput="calcDuracaoTotal()"/></div>
+        <div class="fg"><label>Dias Decorridos (automático)</label><input type="text" id="kpi-decorridos" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Frentes Ativas (automática)</label><input type="number" id="kpi-frentes" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Progresso Previsto Operações (auto = Previsto × 74,94%)</label><input type="text" id="kpi-previsto-op" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Progresso Realizado Operações (auto = Realizado × 74,94%)</label><input type="text" id="kpi-realizado-op" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Desvio de Operações (auto = Previsto Op. − Realizado Op.)</label><input type="text" id="kpi-desvio-op" class="desvio-field" readonly/></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO DE PROGRESSO -->
+  <div class="section">
+    <div class="section-header">📉 Histórico de Progresso (Previsto vs Realizado)</div>
+    <div class="section-body">
+
+      <!-- FORM (oculto até clicar em Incluir) -->
+      <div id="prog-form" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--blue2);font-weight:700;margin-bottom:12px" id="prog-form-title">Novo registro</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label>Data</label>
+            <input type="date" id="prog-data"/>
+          </div>
+          <div class="fg">
+            <label>Previsto (%)</label>
+            <input type="number" id="prog-prev" min="0" max="100" placeholder="0" oninput="calcProgDesvio()"/>
+            <span style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">Percentual acumulado previsto para conclusão no período, conforme a timeline planejada.</span>
+          </div>
+          <div class="fg">
+            <label>Realizado (%)</label>
+            <input type="number" id="prog-real" min="0" max="100" placeholder="0" oninput="calcProgDesvio()"/>
+          </div>
+          <div class="fg">
+            <label>Desvio (automático)</label>
+            <input type="text" id="prog-desvio" class="desvio-field" readonly/>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button class="btn-cancel" onclick="cancelarProgForm()">Cancelar</button>
+          <button class="btn-save" onclick="salvarProgresso()">💾 Salvar registro</button>
+        </div>
+      </div>
+
+      <button class="btn-add" id="btn-add-prog" onclick="abrirProgForm()">+ Incluir registro</button>
+
+      <!-- LISTA -->
+      <div style="margin-top:16px">
+        <div class="hist-controls">
+          <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Registros</span>
+          <span class="hist-count" id="prog-count"></span>
+        </div>
+        <div class="hist-list" id="prog-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FRENTES E ATIVIDADES — datas, progresso e duração numa única tabela,
+       no mesmo formato do Detalhamento exibido no painel. -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <span>📋 Frentes e Atividades</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <a href="#" onclick="abrirHistoricoProgresso();return false;" style="color:var(--blue);font-size:11px;font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">🕒 Ver histórico por data</a>
+        <button onclick="incluirFrente()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">➕ Incluir frente</button>
+        <button onclick="restaurarEstrutura()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0;" title="Voltar à lista original de frentes">↺ Restaurar lista</button>
+        <button onclick="salvarFrentes()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar Frentes</button>
+      </div>
+    </div>
+    <div class="section-body" style="padding:0;overflow-x:auto">
+      <table class="frente-table">
+        <thead><tr>
+          <th style="width:200px">Frente / Atividade</th>
+          <th>Data Inicial</th>
+          <th>Data Final</th>
+          <th>Previsto (%)</th>
+          <th>Realizado (%)</th>
+          <th>Desvio</th>
+          <th>Status</th>
+          <th>Duração (dias)</th>
+          <th style="width:70px">Ações</th>
+        </tr></thead>
+        <tbody id="frentes-tbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:10px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);line-height:1.5;">
+      <strong style="color:var(--muted2)">Atualizar Frentes</strong> grava as oito colunas de todas as linhas
+      como snapshot da data de referência, preservando os registros anteriores no histórico.
+      A duração é calculada em dias corridos a partir das datas.
+      Linhas recolhidas também são salvas.
+    </div>
+  </div>
+
+  <!-- DESTAQUES -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>⭐ Destaques do Desempenho</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <a href="#" onclick="abrirHistoricoDestaques();return false;" style="color:var(--blue);font-size:11px;font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">🕒 Ver histórico por data</a>
+        <button onclick="salvarDestaques()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar Destaques</button>
+      </div>
+    </div>
+    <div class="section-body" style="padding:0;overflow-x:auto">
+      <table class="frente-table">
+        <thead><tr><th style="width:200px">Item</th><th>Previsto (%)</th><th>Realizado (%)</th><th>Desvio</th></tr></thead>
+        <tbody id="destaques-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESUMO -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>📝 Resumo Executivo</span>
+      <button onclick="salvarTextos()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar Textos</button>
+    </div>
+    <div class="section-body">
+      <div class="text-list" id="resumo-list"></div>
+      <button class="btn-add" onclick="addText('resumo-list')">+ Adicionar item</button>
+    </div>
+  </div>
+
+  <!-- RISCOS -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>⚠️ Pontos de Atenção / Riscos</span>
+      <button onclick="salvarTextos()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar Textos</button>
+    </div>
+    <div class="section-body">
+      <div class="text-list" id="riscos-list"></div>
+      <button class="btn-add" onclick="addText('riscos-list')">+ Adicionar risco</button>
+    </div>
+  </div>
+
+  <!-- PASSOS -->
+  <div class="section">
+    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>→ Próximos Passos</span>
+      <button onclick="salvarTextos()" style="background:var(--blue);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;">💾 Atualizar Textos</button>
+    </div>
+    <div class="section-body">
+      <div class="text-list" id="passos-list"></div>
+      <button class="btn-add" onclick="addText('passos-list')">+ Adicionar passo</button>
+    </div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="actions">
+    <button class="btn-cancel" onclick="novoRegistro()">➕ Novo registro</button>
+    <button class="btn-save" onclick="salvar()">💾 Salvar registro</button>
+    <a class="btn-view" href="painel-nexus.html" target="_blank">↗ Ver Painel</a>
+  </div>
+
+  <!-- BACKUP -->
+  <div style="margin-top:16px;padding:16px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">🛡️ Backup dos dados</div>
+    <div style="font-size:11px;color:var(--muted2);margin-bottom:12px;">Exporte um arquivo com todos os registros para não perder nada. Guarde em local seguro. Para restaurar, use Importar.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-save" style="background:#0891b2;" onclick="exportarBackup()">⬇️ Exportar backup</button>
+      <button class="btn-cancel" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
+      <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importarBackup(event)"/>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODAL: HISTÓRICO DE PROGRESSO POR DATA -->
+<div id="hist-prog-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:88vh;overflow:hidden;background:var(--surface);border:1px solid var(--border2);border-radius:14px;display:flex;flex-direction:column;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:13px;font-weight:700;">🕒 Histórico de Progresso por Data</span>
+      <button onclick="fecharHistoricoProgresso()" style="background:none;border:none;color:var(--muted2);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="font-size:11px;color:var(--muted2);">Selecione a data:</label>
+      <select id="hist-prog-select" onchange="renderHistoricoProgresso()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 12px;border-radius:6px;font-size:13px;flex:1;min-width:160px;"></select>
+    </div>
+
+    <!-- GERENCIAR / APAGAR DATAS -->
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--muted2);font-weight:600;">Gerenciar registros salvos</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="selecionarTodasDatas(true)" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:4px 10px;border-radius:5px;font-size:10px;cursor:pointer;">Selecionar tudo</button>
+          <button onclick="selecionarTodasDatas(false)" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:4px 10px;border-radius:5px;font-size:10px;cursor:pointer;">Limpar seleção</button>
+          <button onclick="apagarDatasSelecionadas()" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red);padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Apagar selecionadas</button>
+        </div>
+      </div>
+      <div id="hist-prog-datas" style="max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+    </div>
+
+    <div id="hist-prog-body" style="padding:14px 18px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- MODAL: HISTÓRICO DE DESTAQUES POR DATA -->
+<div id="hist-dest-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:88vh;overflow:hidden;background:var(--surface);border:1px solid var(--border2);border-radius:14px;display:flex;flex-direction:column;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:13px;font-weight:700;">🕒 Histórico de Destaques por Data</span>
+      <button onclick="fecharHistoricoDestaques()" style="background:none;border:none;color:var(--muted2);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="font-size:11px;color:var(--muted2);">Selecione a data:</label>
+      <select id="hist-dest-select" onchange="renderHistoricoDestaques()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 12px;border-radius:6px;font-size:13px;flex:1;min-width:160px;"></select>
+    </div>
+
+    <!-- GERENCIAR / APAGAR DATAS -->
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:11px;color:var(--muted2);font-weight:600;">Gerenciar registros salvos</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="selecionarTodasDatasDest(true)" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:4px 10px;border-radius:5px;font-size:10px;cursor:pointer;">Selecionar tudo</button>
+          <button onclick="selecionarTodasDatasDest(false)" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);padding:4px 10px;border-radius:5px;font-size:10px;cursor:pointer;">Limpar seleção</button>
+          <button onclick="apagarDatasSelecionadasDest()" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red);padding:4px 10px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;">🗑 Apagar selecionadas</button>
+        </div>
+      </div>
+      <div id="hist-dest-datas" style="max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+    </div>
+
+    <div id="hist-dest-body" style="padding:14px 18px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DADOS ESTRUTURAIS
+// ═══════════════════════════════════════════════
+// Estrutura padrão das frentes. nivel 0 = frente, 1 = subfrente, 2 = atividade.
+// Só é usada quando ainda não existe estrutura salva em nexus_estrutura — a
+// partir da primeira inclusão ou exclusão, vale a versão gravada.
+const FRENTES_DEFAULT = [
+  { id:'desenvolvimento', label:'Desenvolvimento',                 nivel:0, ini:'2026-01-07', ter:'2027-01-12' },
+  { id:'central',         label:'Central de Projetos',             nivel:1, ini:'2025-12-15', ter:'2026-12-18' },
+  { id:'dev-central',     label:'Desenvolvimento produto Central', nivel:2, ini:'2025-12-15', ter:'2026-11-20' },
+  { id:'uat-central',     label:'Testes UAT Central',              nivel:2, ini:'2026-04-09', ter:'2026-12-18' },
+  { id:'revenue',         label:'Revenue',                         nivel:1, ini:'2025-12-15', ter:'2026-10-05' },
+  { id:'dev-revenue',     label:'Desenvolvimento produto Revenue', nivel:2, ini:'2025-12-15', ter:'2026-09-04' },
+  { id:'uat-revenue',     label:'Testes UAT Revenue',              nivel:2, ini:'2026-07-21', ter:'2026-10-05' },
+
+  { id:'legado',          label:'Legado',                          nivel:0, ini:'2026-10-06', ter:'2027-03-18' },
+  { id:'legado-central',  label:'Central de Projetos',             nivel:1, ini:'2026-10-06', ter:'2027-03-18' },
+  { id:'legado-revenue',  label:'Revenue',                         nivel:1, ini:'2026-10-06', ter:'2027-03-18' },
+
+  { id:'testes-int',         label:'Testes integrados',            nivel:0, ini:'2026-10-01', ter:'2027-01-29' },
+  { id:'testes-int-central', label:'Central de Projetos',          nivel:1, ini:'2026-10-01', ter:'2027-01-29' },
+  { id:'testes-int-revenue', label:'Revenue',                      nivel:1, ini:'2026-10-01', ter:'2027-01-29' },
+
+  { id:'treinamentos',         label:'Treinamentos',               nivel:0, ini:'2026-11-03', ter:'2027-04-01' },
+  { id:'treinamentos-central', label:'Central de Projetos',        nivel:1, ini:'2026-11-03', ter:'2027-04-01' },
+  { id:'treinamentos-revenue', label:'Revenue',                    nivel:1, ini:'2026-11-03', ter:'2027-04-01' },
+
+  { id:'cadastros',         label:'Cadastros e parametrizações',   nivel:0, ini:'2026-11-03', ter:'2027-01-29' },
+  { id:'cadastros-central', label:'Central de Projetos',           nivel:1, ini:'2026-11-03', ter:'2027-01-29' },
+  { id:'cadastros-revenue', label:'Revenue',                       nivel:1, ini:'2026-11-03', ter:'2027-01-29' },
+
+  { id:'golive',         label:'Go Live',                          nivel:0, ini:'2027-01-11', ter:'2027-04-01' },
+  { id:'golive-central', label:'Central de Projetos',              nivel:1, ini:'2027-01-11', ter:'2027-04-01' },
+  { id:'golive-revenue', label:'Revenue',                          nivel:1, ini:'2027-01-11', ter:'2027-04-01' },
+
+  { id:'op-assistida',         label:'Operação assistida',         nivel:0, ini:'2027-01-11', ter:'2027-05-27' },
+  { id:'op-assistida-central', label:'Central de Projetos',        nivel:1, ini:'2027-01-11', ter:'2027-05-27' },
+  { id:'op-assistida-revenue', label:'Revenue',                    nivel:1, ini:'2027-01-11', ter:'2027-05-27' },
+];
+
+// ═══════════════════════════════════════════════
+// ESTRUTURA EDITÁVEL DAS FRENTES
+// ═══════════════════════════════════════════════
+// A lista fica em nexus_estrutura, chave própria e compartilhada com o painel.
+// Está separada do registro de dados (nexus_dados) de propósito: a estrutura não
+// é um snapshot datado — mudar a lista vale para todas as datas do histórico.
+const ESTRUTURA_KEY = 'nexus_estrutura';
+
+function carregarEstrutura() {
+  try {
+    const salvo = localStorage.getItem(ESTRUTURA_KEY);
+    if (salvo) {
+      const arr = JSON.parse(salvo);
+      // Valida o mínimo necessário: sem isso um JSON corrompido derruba a tela
+      if (Array.isArray(arr) && arr.length && arr.every(f =>
+            f && typeof f.id === 'string' && f.id &&
+            typeof f.label === 'string' && Number.isInteger(f.nivel))) {
+        return arr.map(f => ({
+          id: f.id, label: f.label, nivel: f.nivel,
+          ini: f.ini || '', ter: f.ter || '',
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Estrutura de frentes inválida, usando o padrão.', e);
+  }
+  return JSON.parse(JSON.stringify(FRENTES_DEFAULT));
+}
+
+function salvarEstrutura() {
+  localStorage.setItem(ESTRUTURA_KEY, JSON.stringify(FRENTES));
+}
+
+let FRENTES = carregarEstrutura();
+
+// Gera um id estável a partir do nome. O id é a chave dos dados em frentesData,
+// então não pode colidir com nenhum existente nem mudar depois de criado.
+function novoIdFrente(label) {
+  const base = (label || 'frente')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // remove acentos
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 28) || 'frente';
+  const usados = new Set(FRENTES.map(f => f.id));
+  if (!usados.has(base)) return base;
+  let n = 2;
+  while (usados.has(base + '-' + n)) n++;
+  return base + '-' + n;
+}
+
+// Último índice da subárvore de i (inclui filhas, netas e assim por diante)
+function fimDaSubarvore(i) {
+  const nivel = FRENTES[i].nivel;
+  let fim = i;
+  for (let k = i + 1; k < FRENTES.length && FRENTES[k].nivel > nivel; k++) fim = k;
+  return fim;
+}
+
+function incluirFrente() {
+  const label = (prompt('Nome da nova frente:', '') || '').trim();
+  if (!label) return;
+  FRENTES.push({ id: novoIdFrente(label), label, nivel: 0, ini: '', ter: '' });
+  salvarEstrutura();
+  reconstruirFrentes();
+  toast('✅ Frente "' + label + '" incluída');
+}
+
+function incluirFilha(i) {
+  const pai = FRENTES[i];
+  if (pai.nivel >= 2) { toast('A hierarquia vai até o terceiro nível.', true); return; }
+  const label = (prompt('Nome da subfrente de "' + pai.label + '":', '') || '').trim();
+  if (!label) return;
+  // Mantém abertos o pai e seus ancestrais, senão a linha nova nasce escondida
+  const abrir = [pai.id, ...ancestraisDe(i)];
+  // Entra ao final da subárvore do pai, para não quebrar a hierarquia
+  FRENTES.splice(fimDaSubarvore(i) + 1, 0, {
+    id: novoIdFrente(label), label, nivel: pai.nivel + 1,
+    ini: pai.ini || '', ter: pai.ter || '',
+  });
+  salvarEstrutura();
+  reconstruirFrentes(abrir);
+  toast('✅ "' + label + '" incluída em ' + pai.label);
+}
+
+function restaurarEstrutura() {
+  if (!confirm('Voltar à lista original de frentes?\n\nAs frentes que você incluiu serão removidas da lista, '
+    + 'junto com os dados gravados nelas. As frentes originais não são afetadas.')) return;
+  const idsPadrao = new Set(FRENTES_DEFAULT.map(f => f.id));
+  const removidos = FRENTES.map(f => f.id).filter(id => !idsPadrao.has(id));
+  FRENTES = JSON.parse(JSON.stringify(FRENTES_DEFAULT));
+  salvarEstrutura();
+  limparDadosDasFrentes(removidos);
+  reconstruirFrentes();
+  toast('↺ Lista de frentes restaurada');
+}
+
+function excluirFrente(i) {
+  const f = FRENTES[i];
+  const fim = fimDaSubarvore(i);
+  const qtd = fim - i + 1;
+  const msg = qtd > 1
+    ? 'Excluir "' + f.label + '" e as ' + (qtd - 1) + ' linhas dentro dela?'
+    : 'Excluir "' + f.label + '"?';
+  if (!confirm(msg + '\n\nOs dados já gravados dessas linhas também serão removidos do registro ativo.')) return;
+
+  const removidos = FRENTES.slice(i, fim + 1).map(x => x.id);
+  FRENTES.splice(i, qtd);
+  salvarEstrutura();
+  limparDadosDasFrentes(removidos);
+  reconstruirFrentes();
+  toast('Removido: ' + f.label);
+}
+
+// Apaga as entradas de frentesData das linhas excluídas, no registro ativo e em
+// todo o histórico. Sem isso ficariam dados órfãos crescendo no localStorage.
+function limparDadosDasFrentes(ids) {
+  if (!ids.length) return;
+  const limpa = reg => {
+    if (reg && reg.frentesData) ids.forEach(id => { delete reg.frentesData[id]; });
+    return reg;
+  };
+  try {
+    const ativo = localStorage.getItem('nexus_dados');
+    if (ativo) localStorage.setItem('nexus_dados', JSON.stringify(limpa(JSON.parse(ativo))));
+    const hist = getHist().map(limpa);
+    localStorage.setItem('nexus_historico', JSON.stringify(hist));
+  } catch (e) {
+    console.warn('Não foi possível limpar os dados das frentes removidas.', e);
+  }
+}
+
+// Remonta a tabela e devolve os valores do registro ativo aos campos
+function reconstruirFrentes(manterAbertos = []) {
+  recalcularFechadas(manterAbertos);
+  buildFrentesTable();
+  try {
+    const ativo = localStorage.getItem('nexus_dados');
+    if (!ativo) return;
+    const dados = JSON.parse(ativo);
+    FRENTES.forEach(f => {
+      const fd = dados.frentesData?.[f.id] || {};
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      set('fn-'  + f.id, fd.nome    || f.label);
+      set('fdi-' + f.id, fd.inicio  || f.ini || '');
+      set('fdt-' + f.id, fd.termino || f.ter || '');
+      set('fp-'  + f.id, fd.previsto  || '0');
+      set('fr-'  + f.id, fd.realizado || '0');
+      set('fs-'  + f.id, fd.status    || 'ok');
+      calcFrente(f.id);
+      calcDuracao(f.id);
+    });
+  } catch (e) {
+    console.warn('Não foi possível repreencher a tabela de frentes.', e);
+  }
+}
+
+const DESTAQUES = [
+  { id:'dest-dev-central', label:'Desenvolvimento produto Central' },
+  { id:'dest-uat-central', label:'Testes e validações UAT (Central)' },
+  { id:'dest-dev-revenue', label:'Desenvolvimento produto Revenue' },
+  { id:'dest-uat-revenue', label:'Testes e validações UAT (Revenue)' },
+];
+
+let registroId = null;
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+window.onload = function() {
+  setAgora();
+  recalcularFechadas();
+  buildFrentesTable();
+  buildDestaquesTable();
+  buildDefaultTexts();
+  renderHist();
+  renderProgresso();
+  renderGantt();
+  autoLoadUltimo();
+  // Data e hora sempre de hoje/agora ao abrir (dados do último registro servem só de base)
+  setAgora();
+  registroId = null;
+  calcDiasDecorridos();
+  atualizarStatus();
+};
+
+// ═══════════════════════════════════════════════
+// LINHA DO TEMPO — PROJETO GLOBAL (Gantt)
+// ═══════════════════════════════════════════════
+const GANTT_FASES = [
+  { nome:'Desenvolvimento',              peso:44.10, dias:394, ini:'2025-12-15', fim:'2027-01-13', cor:'#3b82f6' },
+  { nome:'Legado',                       peso:12.50, dias:163, ini:'2026-10-06', fim:'2027-03-18', cor:'#8b5cf6' },
+  { nome:'Testes integrados',            peso:11.00, dias:120, ini:'2026-10-01', fim:'2027-01-29', cor:'#06b6d4' },
+  { nome:'Treinamentos',                 peso:8.80,  dias:149, ini:'2026-11-03', fim:'2027-04-01', cor:'#eab308' },
+  { nome:'Cadastros e parametrizações',  peso:6.60,  dias:87,  ini:'2026-11-03', fim:'2027-01-29', cor:'#f97316' },
+  { nome:'Go Live',                      peso:6.60,  dias:80,  ini:'2027-01-11', fim:'2027-04-01', cor:'#22c55e' },
+  { nome:'Operação assistida',           peso:10.30, dias:136, ini:'2027-01-11', fim:'2027-05-27', cor:'#ec4899' },
+];
+
+function fmtBR(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function renderGantt() {
+  const el = document.getElementById('gantt');
+  if (!el) return;
+
+  // Escala global: menor início e maior fim
+  const inis = GANTT_FASES.map(f => new Date(f.ini).getTime());
+  const fims = GANTT_FASES.map(f => new Date(f.fim).getTime());
+  const min = Math.min(...inis);
+  const max = Math.max(...fims);
+  const span = max - min || 1;
+
+  // Marcas de meses para a régua
+  const escala = [];
+  const dIni = new Date(min);
+  const cursor = new Date(dIni.getFullYear(), dIni.getMonth(), 1);
+  const dMax = new Date(max);
+  while (cursor <= dMax) {
+    escala.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  const mesLabels = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  const reguaMarks = escala.map(dt => {
+    const pos = ((dt.getTime() - min) / span) * 100;
+    return `<div style="position:absolute;left:${pos}%;top:0;bottom:0;width:1px;background:var(--border);"></div>
+            <div style="position:absolute;left:${pos}%;top:0;transform:translateX(2px);font-size:8px;color:var(--muted);white-space:nowrap;">${mesLabels[dt.getMonth()]}/${String(dt.getFullYear()).slice(2)}</div>`;
+  }).join('');
+
+  const linhas = GANTT_FASES.map(f => {
+    const iniT = new Date(f.ini).getTime();
+    const fimT = new Date(f.fim).getTime();
+    const left = ((iniT - min) / span) * 100;
+    const width = ((fimT - iniT) / span) * 100;
+    // Espessura da barra proporcional ao peso (escala de peso por fase)
+    const alturaBarra = 14 + (f.peso / 44.10) * 16; // 14px a 30px
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+        <div style="width:150px;flex-shrink:0;font-size:11px;color:var(--text);text-align:right;padding-right:6px;line-height:1.2;">
+          ${f.nome}
+          <div style="font-size:9px;color:var(--muted);">${f.peso.toFixed(2).replace('.',',')}% · ${f.dias} dias</div>
+        </div>
+        <div style="flex:1;position:relative;height:34px;">
+          ${reguaMarks}
+          <div title="${f.nome}: ${fmtBR(f.ini)} -> ${fmtBR(f.fim)} (${f.dias} dias, ${f.peso.toFixed(2).replace('.',',')}%)"
+               style="position:absolute;top:50%;transform:translateY(-50%);left:${left}%;width:${width}%;height:${alturaBarra}px;
+                      background:linear-gradient(90deg,${f.cor},${f.cor}bb);border-radius:6px;
+                      box-shadow:0 2px 6px ${f.cor}44;display:flex;align-items:center;justify-content:space-between;
+                      padding:0 6px;min-width:40px;overflow:hidden;">
+            <span style="font-size:8px;color:#fff;font-weight:700;white-space:nowrap;">${fmtBR(f.ini).slice(0,5)}</span>
+            <span style="font-size:8px;color:#fff;font-weight:700;white-space:nowrap;">${fmtBR(f.fim).slice(0,5)}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;">
+      <div style="min-width:620px;">
+        <!-- Regua de meses -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="width:150px;flex-shrink:0;"></div>
+          <div style="flex:1;position:relative;height:14px;">${reguaMarks}</div>
+        </div>
+        ${linhas}
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--muted2);display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+      <span>A espessura de cada barra e proporcional ao peso da fase no projeto.</span>
+    </div>`;
+}
+
+function dataHojeLocalISO() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+}
+
+function setAgora() {
+  const now = new Date();
+  document.getElementById('data-ref').value = dataHojeLocalISO();
+  document.getElementById('hora-ref').value = now.toTimeString().slice(0,5);
+}
+
+// ═══════════════════════════════════════════════
+// HISTÓRICO DE PROGRESSO (Previsto vs Realizado)
+// ═══════════════════════════════════════════════
+const PROG_KEY = 'nexus_progresso';
+let progEditId = null;
+
+function getProgresso() {
+  try { return JSON.parse(localStorage.getItem(PROG_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function setProgresso(lista) {
+  lista.sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  localStorage.setItem(PROG_KEY, JSON.stringify(lista));
+}
+
+function abrirProgForm(id) {
+  progEditId = id || null;
+  const form  = document.getElementById('prog-form');
+  const title = document.getElementById('prog-form-title');
+  const btn   = document.getElementById('btn-add-prog');
+
+  if (progEditId) {
+    const item = getProgresso().find(p => p.id === progEditId);
+    if (item) {
+      document.getElementById('prog-data').value = item.data      || '';
+      document.getElementById('prog-prev').value = item.previsto  || '';
+      document.getElementById('prog-real').value = item.realizado || '';
+    }
+    title.textContent = 'Editar registro';
+  } else {
+    document.getElementById('prog-data').value = dataHojeLocalISO();
+    document.getElementById('prog-prev').value = '';
+    document.getElementById('prog-real').value = '';
+    title.textContent = 'Novo registro';
+  }
+
+  calcProgDesvio();
+  form.style.display = 'block';
+  btn.style.display  = 'none';
+  document.getElementById('prog-data').focus();
+}
+
+function cancelarProgForm() {
+  progEditId = null;
+  document.getElementById('prog-form').style.display  = 'none';
+  document.getElementById('btn-add-prog').style.display = 'block';
+}
+
+function calcProgDesvio() {
+  const p = parseFloat(document.getElementById('prog-prev').value) || 0;
+  const r = parseFloat(document.getElementById('prog-real').value) || 0;
+  const d = r - p;
+  const el = document.getElementById('prog-desvio');
+  el.value = (d >= 0 ? '+' : '') + d + ' p.p.';
+  el.style.color = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--muted2)';
+}
+
+function salvarProgresso() {
+  const data = document.getElementById('prog-data').value;
+  const prev = document.getElementById('prog-prev').value;
+  const real = document.getElementById('prog-real').value;
+
+  if (!data) { toast('Informe a data do registro', true); return; }
+  if (prev === '' || real === '') { toast('Informe Previsto e Realizado', true); return; }
+
+  const lista = getProgresso();
+
+  if (progEditId) {
+    const idx = lista.findIndex(p => p.id === progEditId);
+    if (idx >= 0) lista[idx] = { id: progEditId, data, previsto: prev, realizado: real };
+  } else {
+    // Se já existe registro na mesma data, substitui
+    const existente = lista.findIndex(p => p.data === data);
+    const novo = { id: 'p-' + Date.now(), data, previsto: prev, realizado: real };
+    if (existente >= 0) lista[existente] = { ...novo, id: lista[existente].id };
+    else lista.push(novo);
+  }
+
+  setProgresso(lista);
+  cancelarProgForm();
+  renderProgresso();
+  toast('✅ Registro de progresso salvo');
+}
+
+function editarProgresso(id) {
+  abrirProgForm(id);
+}
+
+function deletarProgresso(id) {
+  const item = getProgresso().find(p => p.id === id);
+  if (!item) return;
+  if (!confirm('Remover o registro de ' + fmtDate(item.data) + '?')) return;
+  setProgresso(getProgresso().filter(p => p.id !== id));
+  if (progEditId === id) cancelarProgForm();
+  renderProgresso();
+  toast('Registro removido');
+}
+
+function renderProgresso() {
+  const lista = getProgresso();
+  const el    = document.getElementById('prog-list');
+  const count = document.getElementById('prog-count');
+  if (!el) return;
+
+  count.textContent = lista.length + ' registro(s)';
+
+  if (!lista.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px 0">Nenhum registro de progresso. Clique em "Incluir registro" para começar.</div>';
+    return;
+  }
+
+  el.innerHTML = lista.map(p => {
+    const prev = parseFloat(p.previsto)  || 0;
+    const real = parseFloat(p.realizado) || 0;
+    const d    = real - prev;
+    const dCls = d < 0 ? 'neg' : d > 0 ? 'pos' : '';
+    const editando = p.id === progEditId ? ' active' : '';
+    return `<div class="hist-item${editando}">
+      <span class="hi-time">${fmtDate(p.data)}</span>
+      <span class="hi-vals">Previsto: <strong>${prev}%</strong> · Realizado: <strong>${real}%</strong></span>
+      <span class="hi-desvio ${dCls}">${(d >= 0 ? '+' : '') + d} p.p.</span>
+      <button class="hi-load" onclick="editarProgresso('${p.id}')" title="Editar">✏️ Editar</button>
+      <button class="hi-del"  onclick="deletarProgresso('${p.id}')" title="Remover">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// BUILD TABLES
+// ═══════════════════════════════════════════════
+// ── COLAPSO DAS FRENTES ──
+// Mesma mecânica do painel: a hierarquia vem da ordem das linhas com o campo
+// `nivel`, e o pai de uma linha é a anterior mais próxima com nível menor.
+// Colapsar só esconde a linha — os inputs continuam no DOM, então as funções de
+// gravação leem normalmente o que está recolhido.
+
+function paiDaFrente(i) {
+  const nivel = FRENTES[i].nivel;
+  for (let k = i - 1; k >= 0; k--) {
+    if (FRENTES[k].nivel < nivel) return k;
+  }
+  return -1;
+}
+
+function temFilhasFrente(i) {
+  const prox = FRENTES[i + 1];
+  return !!prox && prox.nivel > FRENTES[i].nivel;
+}
+
+// Guardado por ID e não por índice: incluir ou excluir uma linha desloca todos os
+// índices seguintes, e o estado de colapso migraria para as linhas erradas.
+let FRENTES_FECHADAS = new Set();
+
+// Fecha todos os pais, exceto os ids passados em manterAbertos. Chamado no
+// carregamento e depois de cada mudança de estrutura.
+function recalcularFechadas(manterAbertos = []) {
+  FRENTES_FECHADAS = new Set();
+  FRENTES.forEach((f, i) => {
+    if (temFilhasFrente(i) && manterAbertos.indexOf(f.id) === -1) {
+      FRENTES_FECHADAS.add(f.id);
+    }
+  });
+}
+
+// Ids de todos os ancestrais de uma linha, do pai até a raiz
+function ancestraisDe(i) {
+  const ids = [];
+  let p = paiDaFrente(i);
+  while (p >= 0) { ids.push(FRENTES[p].id); p = paiDaFrente(p); }
+  return ids;
+}
+
+// Visível só se nenhum ancestral estiver fechado
+function frenteVisivel(i) {
+  return ancestraisDe(i).every(id => !FRENTES_FECHADAS.has(id));
+}
+
+function aplicarColapsoFrentes() {
+  const tbody = document.getElementById('frentes-tbody');
+  if (!tbody) return;
+  FRENTES.forEach((f, i) => {
+    const tr = tbody.querySelector('tr[data-row="' + i + '"]');
+    if (!tr) return;
+    tr.style.display = frenteVisivel(i) ? '' : 'none';
+    const tg = tr.querySelector('.fr-toggle');
+    if (tg) {
+      const fechada = FRENTES_FECHADAS.has(f.id);
+      tg.setAttribute('data-open', fechada ? '0' : '1');
+      tg.textContent = fechada ? '▸' : '▾';
+    }
+  });
+}
+
+function toggleFrente(i) {
+  const id = FRENTES[i]?.id;
+  if (!id) return;
+  if (FRENTES_FECHADAS.has(id)) FRENTES_FECHADAS.delete(id);
+  else FRENTES_FECHADAS.add(id);
+  aplicarColapsoFrentes();
+}
+
+// Tabela única de frentes: nome, datas, progresso, desvio, status e duração.
+// Antes eram duas tabelas separadas (Progresso por Frente e Detalhamento), cada
+// uma com o próprio campo de nome — havia dois inputs gravando o mesmo dado.
+// Aqui o nome existe uma vez só, no id fn-<frente>.
+function buildFrentesTable() {
+  const tbody = document.getElementById('frentes-tbody');
+  tbody.innerHTML = '';
+  FRENTES.forEach((f, i) => {
+    const indent = f.nivel===1?'padding-left:18px':f.nivel===2?'padding-left:34px':'';
+    const cls = f.nivel>0?'fsub':'fname';
+    const fechada = FRENTES_FECHADAS.has(f.id);
+    const chevron = temFilhasFrente(i)
+      ? `<span class="fr-toggle" onclick="toggleFrente(${i})" data-open="${fechada ? '0' : '1'}" title="Expandir ou recolher" style="cursor:pointer;display:inline-block;width:14px;flex-shrink:0;color:var(--blue2);user-select:none;font-size:11px;">${fechada ? '▸' : '▾'}</span>`
+      : '<span style="display:inline-block;width:14px;flex-shrink:0;"></span>';
+    // Ações da linha: incluir subfrente (até o 3º nível) e excluir a subárvore
+    const acoes =
+      (f.nivel < 2
+        ? `<button class="fr-acao" onclick="incluirFilha(${i})" title="Incluir subfrente dentro desta">＋</button>`
+        : '') +
+      `<button class="fr-acao fr-acao-del" onclick="excluirFrente(${i})" title="Excluir esta linha e as de dentro dela">✕</button>`;
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-row', i);
+    tr.setAttribute('data-nivel', f.nivel);
+    tr.innerHTML = `
+      <td style="${indent}"><div style="display:flex;align-items:center;gap:4px;">${chevron}<input type="text" class="${cls}" id="fn-${f.id}" value="${f.label}" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;width:100%;min-width:0"/></div></td>
+      <td><input class="text-input" type="date" id="fdi-${f.id}" value="${f.ini||''}" oninput="calcDuracao('${f.id}')"/></td>
+      <td><input class="text-input" type="date" id="fdt-${f.id}" value="${f.ter||''}" oninput="calcDuracao('${f.id}')"/></td>
+      <td><input class="pct-input" type="number" min="0" max="100" id="fp-${f.id}" placeholder="0" oninput="calcFrente('${f.id}')"/></td>
+      <td><input class="pct-input" type="number" min="0" max="100" id="fr-${f.id}" placeholder="0" oninput="calcFrente('${f.id}')"/></td>
+      <td><span id="fd-${f.id}" class="desvio-cell dev-zero">0 p.p.</span></td>
+      <td><select class="status-sel" id="fs-${f.id}">
+        <option value="ok">No prazo</option><option value="risco">Risco</option><option value="atraso">Atrasado</option><option value="muito">Muito atr.</option>
+      </select></td>
+      <td><span id="fdu-${f.id}" class="dur-cell">–</span></td>
+      <td style="white-space:nowrap">${acoes}</td>`;
+    tbody.appendChild(tr);
+    calcDuracao(f.id);
+  });
+  aplicarColapsoFrentes();
+}
+
+function buildDestaquesTable() {
+  const tbody = document.getElementById('destaques-tbody');
+  tbody.innerHTML = '';
+  DESTAQUES.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" id="dn-${d.id}" value="${d.label}" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:5px;font-size:12px;width:100%"/></td>
+      <td><input class="pct-input" type="number" min="0" max="100" id="dp-${d.id}" placeholder="0" oninput="calcDest('${d.id}')"/></td>
+      <td><input class="pct-input" type="number" min="0" max="100" id="dr-${d.id}" placeholder="0" oninput="calcDest('${d.id}')"/></td>
+      <td><span id="dd-${d.id}" class="desvio-cell dev-zero">0 p.p.</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildDefaultTexts() {
+  const r=['O projeto apresenta progresso global, com desvio em relação ao previsto.','Está em andamento, com destaque para os desenvolvimentos de produto e testes em UAT.','Os testes e validações em UAT são os principais pontos de atenção.','O principal motivador do atraso foi o represamento de entregas que gerou indisponibilidade do produto.','Todas as demais frentes estão na fase de preparação.'];
+  const ri=[
+    { id:'R-01', texto:'Testes e validações Central e Revenue abaixo do previsto, alto risco de ATRASO do plano de projeto.', acoes:[
+      { acao:'Homologação assistida com o time de Central de Projetos', responsavel:'Transformação Digital - Sottelli', prazo:'', cadencia:'Semanalmente', status:'Em Andamento' },
+      { acao:'Homologação presencial integrada (in loco - Recife)',     responsavel:'Transformação Digital - Sottelli', prazo:'2026-10-09', cadencia:'', status:'Planejamento' },
+    ]},
+    { id:'R-02', texto:'Recomenda-se reduzir o esforço no desenvolvimento de produto e colocar energia do fornecedor na fase de teste e homologação.', acoes:[] },
+    { id:'R-03', texto:'Garantir disponibilidade da equipe MV e Fornecedor para acelerar testes e homologação da solução.', acoes:[] },
+    { id:'R-04', texto:'Evitar cancelamento das reuniões de homologação.', acoes:[] },
+    { id:'R-05', texto:'Pendente estratégia e plano de correção do produto em tempo de teste para revisar os prazos do cronograma', acoes:[] },
+    { id:'R-06', texto:'Falta do desenho as-is e to-be de processos', acoes:[] },
+  ];
+  const pa=['Acompanhar execução dos testes em UAT nas frentes Central e Revenue.','Preparar as frentes Legado, Testes Integrados e Treinamentos.','Manter foco nas entregas e na antecipação de riscos para garantir o Go Live.'];
+  ['resumo-list','riscos-list','passos-list'].forEach(id => document.getElementById(id).innerHTML='');
+  r.forEach(t => addText('resumo-list',t));
+  ri.forEach(x => addText('riscos-list', x.texto, x));
+  pa.forEach(t => addText('passos-list',t));
+}
+
+// ═══════════════════════════════════════════════
+// CÁLCULOS
+// ═══════════════════════════════════════════════
+function calcDesvioGlobal() {
+  const p=Math.round(parseFloat(document.getElementById('kpi-previsto').value)||0);
+  const r=Math.round(parseFloat(document.getElementById('kpi-realizado').value)||0);
+  const d=r-p, el=document.getElementById('kpi-desvio');
+  el.value=(d>=0?'+':'')+d+' p.p.';
+  el.style.color=d>0?'var(--green)':d<0?'var(--red)':'var(--muted2)';
+  // Progresso Previsto Operações = Previsto × 74,94%
+  const opPrev=Math.round(p*0.7494);
+  const elOp=document.getElementById('kpi-previsto-op');
+  if(elOp){ elOp.value=opPrev+'%'; }
+  // Progresso Realizado Operações = Realizado × 74,94%
+  const opReal=Math.round(r*0.7494);
+  const elOpR=document.getElementById('kpi-realizado-op');
+  if(elOpR){ elOpR.value=opReal+'%'; }
+  // Desvio de Operações = Previsto Op. − Realizado Op.
+  const elOpD=document.getElementById('kpi-desvio-op');
+  if(elOpD){ const dOp=opPrev-opReal; elOpD.value=(dOp>=0?'+':'')+dOp+' p.p.'; elOpD.style.color=dOp>0?'var(--red)':dOp<0?'var(--green)':'var(--muted2)'; }
+}
+
+function calcFrente(id) {
+  const p=parseFloat(document.getElementById('fp-'+id)?.value)||0;
+  const r=parseFloat(document.getElementById('fr-'+id)?.value)||0;
+  setDev('fd-'+id,r-p);
+  autoStatus(id,r-p);
+}
+
+function calcDest(id) {
+  const p=parseFloat(document.getElementById('dp-'+id)?.value)||0;
+  const r=parseFloat(document.getElementById('dr-'+id)?.value)||0;
+  setDev('dd-'+id,r-p);
+}
+
+// Converte "dd/mm/aaaa" (ou "aaaa-mm-dd") em Date
+function parseDataBR(str) {
+  if(!str) return null;
+  const s=str.trim();
+  if(s.includes('/')){
+    const[d,m,y]=s.split('/');
+    if(!d||!m||!y) return null;
+    const ano=y.length===2?'20'+y:y;
+    const dt=new Date(+ano,+m-1,+d);
+    return isNaN(dt)?null:dt;
+  }
+  const dt=new Date(s);
+  return isNaN(dt)?null:dt;
+}
+
+function calcDuracaoTotal() {
+  // Campo "Duração Total" removido da tela; mantém apenas o cálculo de dias decorridos.
+  calcDiasDecorridos();
+}
+
+// Dias decorridos desde o início do projeto (15/12/2025) até hoje.
+// Usa a data de início informada; se vazia, assume 15/12/2025 (início fixo do projeto).
+function calcDiasDecorridos() {
+  const dec = document.getElementById('kpi-decorridos');
+  if(!dec) return;
+  const d1 = parseDataBR(document.getElementById('kpi-inicio')?.value) || parseDataBR('15/12/2025');
+  const d2 = parseDataBR(document.getElementById('kpi-termino')?.value);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  let corridos;
+  if(hoje < d1){
+    corridos = 0;                                          // projeto ainda não iniciou
+  } else if(d2 && hoje > d2){
+    corridos = Math.round((d2 - d1)/(1000*60*60*24)) + 1;  // encerrado: duração total
+  } else {
+    corridos = Math.round((hoje - d1)/(1000*60*60*24)) + 1;// em andamento: início → hoje
+  }
+  dec.value = corridos + ' dias';
+  dec.style.color = 'var(--text)';
+}
+
+function calcDuracao(id) {
+  const ini=document.getElementById('fdi-'+id)?.value;
+  const ter=document.getElementById('fdt-'+id)?.value;
+  const el=document.getElementById('fdu-'+id);
+  if(!el||!ini||!ter){if(el) el.textContent='–';return;}
+  const d1=new Date(ini),d2=new Date(ter);
+  if(isNaN(d1)||isNaN(d2)||d2<=d1){el.textContent='–';return;}
+  const total=diasUteis(d1,d2);
+  el.textContent=total+' dias';
+  // Obs.: o Previsto (%) de cada frente é digitado manualmente na seção
+  // "Progresso por Frente" — não é sobrescrito por cálculo automático.
+}
+
+// Conta dias úteis (seg-sex) entre duas datas, inclusivo do início e fim.
+// Exclui sábados e domingos, seguindo a convenção do MS Project.
+function diasUteis(d1,d2){
+  if(!d1||!d2) return 0;
+  const ini=new Date(d1); ini.setHours(0,0,0,0);
+  const fim=new Date(d2); fim.setHours(0,0,0,0);
+  if(fim<ini) return 0;
+  let count=0;
+  const cur=new Date(ini);
+  while(cur<=fim){
+    const dow=cur.getDay(); // 0=domingo, 6=sábado
+    if(dow!==0 && dow!==6) count++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return count;
+}
+
+function setDev(elId,d) {
+  const el=document.getElementById(elId); if(!el) return;
+  el.textContent=(d>=0?'+':'')+d+' p.p.';
+  el.className='desvio-cell '+(d>0?'dev-pos':d<0?'dev-neg':'dev-zero');
+}
+
+function autoStatus(id,d) {
+  const sel=document.getElementById('fs-'+id); if(!sel) return;
+  sel.value=d>=-5?'ok':d>=-10?'risco':d>=-15?'atraso':'muito';
+}
+
+// ═══════════════════════════════════════════════
+// TEXTO DINÂMICO
+// ═══════════════════════════════════════════════
+// Ícones disponíveis para o Resumo Executivo (escapes Unicode p/ não corromper)
+const ICONES_RESUMO = [
+  { v:'',                 nome:'(automático)' },
+  { v:'\u{1F534}',        nome:'Farol vermelho' },
+  { v:'\u{1F6A8}',        nome:'Sirene' },
+  { v:'\u26A0\uFE0F',     nome:'Alerta' },
+  { v:'\u{1F6A7}',        nome:'Impedimento' },
+  { v:'\u26D4',           nome:'Interdição' },
+  { v:'\u{1F4C9}',        nome:'Queda' },
+  { v:'\u{1F4C8}',        nome:'Alta' },
+  { v:'\u{1F4CA}',        nome:'Indicador' },
+  { v:'\u{1F50D}',        nome:'Ponto de atenção' },
+  { v:'\u{1F9EA}',        nome:'Testes' },
+  { v:'\u{1F4CB}',        nome:'Escopo' },
+  { v:'\u{1F4C5}',        nome:'Prazo' },
+  { v:'\u{1F4CC}',        nome:'Registro' },
+  { v:'\u{1F680}',        nome:'Go Live' },
+  { v:'\u2705',           nome:'Concluído' },
+  { v:'\u{1F3AF}',        nome:'Meta' },
+];
+
+// Opções de status dos riscos
+const STATUS_RISCO = ['Planejamento', 'Em Andamento', 'Aguardando Retorno', 'Concluído', 'Cancelado'];
+
+// Escapa texto livre digitado pelo usuário antes de injetar em atributo HTML
+function escAttr(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Próximo ID sequencial (R-01, R-02, ...) com base nos IDs já presentes na lista
+function proximoIdRisco() {
+  const nums = [...document.querySelectorAll('#riscos-list .r-id')]
+    .map(i => (i.value.match(/(\d+)\s*$/) || [])[1])
+    .filter(Boolean).map(Number);
+  const prox = nums.length ? Math.max(...nums) + 1 : 1;
+  return 'R-' + String(prox).padStart(2, '0');
+}
+
+// Normaliza um risco para o formato atual { id, texto, acoes:[] }.
+// Aceita: texto puro (legado 1) e { id, texto, plano, responsavel, prazo, status }
+// (legado 2), migrando o plano antigo para a primeira ação.
+function normalizaRisco(r) {
+  if (typeof r === 'string') return { id: '', texto: r, acoes: [] };
+  const o = r || {};
+  if (Array.isArray(o.acoes)) {
+    return { id: o.id || '', texto: o.texto || '', acoes: o.acoes };
+  }
+  const temPlanoAntigo = o.plano || o.responsavel || o.prazo || o.status;
+  return {
+    id: o.id || '', texto: o.texto || '',
+    acoes: temPlanoAntigo ? [{
+      acao: o.plano || '', responsavel: o.responsavel || '',
+      prazo: o.prazo || '', cadencia: '', status: o.status || '',
+    }] : [],
+  };
+}
+
+// Renumera a coluna # das ações de um risco (1, 2, 3...)
+function renumerarAcoes(lista) {
+  [...lista.children].forEach((row, i) => {
+    const n = row.querySelector('.acao-num');
+    if (n) n.textContent = i + 1;
+  });
+}
+
+// Adiciona uma linha de ação. `alvo` = botão "+ Adicionar ação" ou a .acao-list
+function addAcao(alvo, a = {}) {
+  // Sai sem quebrar se o alvo não for encontrado: esta função é chamada em laço
+  // ao preencher o formulário, e um erro aqui abortava a renderização inteira.
+  if (!alvo) return;
+  const lista = alvo.classList?.contains('acao-list')
+    ? alvo
+    : alvo.closest('.risco-acoes')?.querySelector('.acao-list');
+  if (!lista) return;
+  const vazio = lista.parentElement?.querySelector('.acoes-vazio');
+  if (vazio) vazio.remove();
+
+  const opcoes = ['', ...STATUS_RISCO].map(s =>
+    `<option value="${s}"${s === (a.status || '') ? ' selected' : ''}>${s || '—'}</option>`
+  ).join('');
+
+  const row = document.createElement('div');
+  row.className = 'acao-grid acao-row';
+  row.innerHTML =
+    `<div class="acao-num"></div>` +
+    `<textarea rows="1" class="a-acao" placeholder="Descreva a ação">${a.acao || ''}</textarea>` +
+    `<input type="text" class="a-resp" placeholder="Responsável" value="${escAttr(a.responsavel)}"/>` +
+    `<input type="date" class="a-prazo" value="${escAttr(a.prazo)}"/>` +
+    `<input type="text" class="a-cad" placeholder="Ex.: Semanal" value="${escAttr(a.cadencia)}"/>` +
+    `<select class="a-status">${opcoes}</select>` +
+    `<button class="btn-rem-acao" title="Remover ação" onclick="remAcao(this)">✕</button>`;
+  lista.appendChild(row);
+  renumerarAcoes(lista);
+}
+
+function remAcao(btn) {
+  const lista = btn.closest('.acao-list');
+  btn.closest('.acao-row').remove();
+  renumerarAcoes(lista);
+}
+
+// 'resumo-list' ganha seletor de ícone; 'riscos-list' ganha ID e um plano de ação
+// com N ações (#, ação, responsável, prazo, cadência, status); 'passos-list' só texto.
+function addText(listId, val = '', extra = {}) {
+  const list = document.getElementById(listId);
+  const div = document.createElement('div');
+  div.className = 'text-item';
+
+  // ── Risco: ID + texto + tabela de ações ──
+  if (listId === 'riscos-list') {
+    div.classList.add('risco-item');
+    const risco = normalizaRisco({ ...extra, texto: val || extra.texto || '' });
+    div.innerHTML = `
+      <div class="risco-main">
+        <div class="risco-topo">
+          <div class="risco-idbox">
+            <label>ID</label>
+            <input type="text" class="r-id" placeholder="R-01" value="${escAttr(risco.id || proximoIdRisco())}"/>
+          </div>
+          <div class="risco-txtbox">
+            <label>Ponto de atenção / Risco</label>
+            <textarea rows="2" class="r-texto" placeholder="Descreva o ponto de atenção ou risco">${risco.texto}</textarea>
+          </div>
+        </div>
+        <div class="risco-acoes">
+          <div class="acoes-hdr">Plano de ação</div>
+          <div class="acao-grid acao-head">
+            <span>#</span><span>Ação</span><span>Responsável</span>
+            <span>Prazo</span><span>Cadência</span><span>Status</span><span></span>
+          </div>
+          <div class="acao-list"></div>
+          <div class="acoes-vazio">Nenhuma ação cadastrada.</div>
+          <button class="btn-add-acao" onclick="addAcao(this)">+ Adicionar ação</button>
+        </div>
+      </div>
+      <button class="btn-rem" title="Remover risco" onclick="this.parentElement.remove()">✕</button>`;
+    list.appendChild(div);
+    risco.acoes.forEach(a => addAcao(div.querySelector('.acao-list'), a));
+    return;
+  }
+
+  // ── Resumo: seletor de ícone + texto ──
+  let seletor = '';
+  if (listId === 'resumo-list') {
+    const icone = typeof extra === 'string' ? extra : (extra.icone || '');
+    const opcoes = ICONES_RESUMO.map(o =>
+      `<option value="${o.v}"${o.v === icone ? ' selected' : ''}>${o.v || '—'}</option>`
+    ).join('');
+    seletor = `<select class="icon-pick" title="Ícone do item">${opcoes}</select>`;
+  }
+
+  div.innerHTML = seletor +
+    `<textarea rows="2">${val}</textarea>` +
+    `<button class="btn-rem" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(div);
+}
+
+// Resumo devolve { icone, texto }; riscos devolve { texto, responsavel, prazo,
+// status }; passos segue como texto simples
+function getTexts(id) {
+  if (id === 'resumo-list') {
+    return [...document.querySelectorAll('#resumo-list .text-item')].map(item => ({
+      icone: item.querySelector('.icon-pick')?.value || '',
+      texto: item.querySelector('textarea')?.value.trim() || '',
+    })).filter(o => o.texto);
+  }
+  if (id === 'riscos-list') {
+    return [...document.querySelectorAll('#riscos-list .text-item')].map(item => ({
+      id:    item.querySelector('.r-id')?.value.trim() || '',
+      texto: item.querySelector('.r-texto')?.value.trim() || '',
+      acoes: [...item.querySelectorAll('.acao-row')].map(row => ({
+        acao:        row.querySelector('.a-acao')?.value.trim() || '',
+        responsavel: row.querySelector('.a-resp')?.value.trim() || '',
+        prazo:       row.querySelector('.a-prazo')?.value || '',
+        cadencia:    row.querySelector('.a-cad')?.value.trim() || '',
+        status:      row.querySelector('.a-status')?.value || '',
+      })).filter(a => a.acao),
+    })).filter(o => o.texto);
+  }
+  return [...document.querySelectorAll(`#${id} textarea`)].map(t => t.value.trim()).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════════
+// COLETA / PREENCHE
+// ═══════════════════════════════════════════════
+function coletarDados() {
+  const dataRef=document.getElementById('data-ref').value;
+  const horaRef=document.getElementById('hora-ref').value||'00:00';
+  // Histórico gravado POR DATA: a data é a chave única do registro
+  const id=dataRef;
+  const dados={id,dataRef,horaRef,
+    previsto:document.getElementById('kpi-previsto').value||'0',
+    realizado:document.getElementById('kpi-realizado').value||'0',
+    inicio:document.getElementById('kpi-inicio').value||'15/12/2025',
+    termino:document.getElementById('kpi-termino').value||'27/05/2027',
+    duracao:(function(){const d1=parseDataBR(document.getElementById('kpi-inicio')?.value);const d2=parseDataBR(document.getElementById('kpi-termino')?.value);return (d1&&d2&&d2>d1)?diasUteis(d1,d2)+' dias':'';})(),
+    frentes:document.getElementById('kpi-frentes').value||'9',
+    frentesData:{},destaquesData:{},
+    resumo:getTexts('resumo-list'),riscos:getTexts('riscos-list'),passos:getTexts('passos-list'),
+  };
+  FRENTES.forEach(f=>{
+    dados.frentesData[f.id]={
+      previsto:document.getElementById('fp-'+f.id)?.value||'0',
+      realizado:document.getElementById('fr-'+f.id)?.value||'0',
+      status:document.getElementById('fs-'+f.id)?.value||'ok',
+      nome:document.getElementById('fn-'+f.id)?.value||f.label,
+      duracao:document.getElementById('fdu-'+f.id)?.textContent||'',
+      inicio:document.getElementById('fdi-'+f.id)?.value||'',
+      termino:document.getElementById('fdt-'+f.id)?.value||'',
+    };
+  });
+  DESTAQUES.forEach(d=>{
+    dados.destaquesData[d.id]={
+      previsto:document.getElementById('dp-'+d.id)?.value||'0',
+      realizado:document.getElementById('dr-'+d.id)?.value||'0',
+      nome:document.getElementById('dn-'+d.id)?.value||d.label,
+    };
+  });
+  return dados;
+}
+
+function preencherForm(dados) {
+  registroId=dados.id;
+  document.getElementById('data-ref').value=dados.dataRef||'';
+  document.getElementById('hora-ref').value=dados.horaRef||'';
+  document.getElementById('kpi-previsto').value=dados.previsto||'';
+  document.getElementById('kpi-realizado').value=dados.realizado||'';
+  document.getElementById('kpi-inicio').value=dados.inicio||'15/12/2025';
+  document.getElementById('kpi-termino').value=dados.termino||'27/05/2027';
+  document.getElementById('kpi-frentes').value=dados.frentes||'9';
+  calcDesvioGlobal();
+  calcDuracaoTotal();
+  FRENTES.forEach(f=>{
+    const fd=dados.frentesData?.[f.id]||{};
+    const fp=document.getElementById('fp-'+f.id);
+    const fr=document.getElementById('fr-'+f.id);
+    const fs=document.getElementById('fs-'+f.id);
+    if(fp)fp.value=fd.previsto||'0';
+    if(fr)fr.value=fd.realizado||'0';
+    if(fs)fs.value=fd.status||'ok';
+    calcFrente(f.id);
+    const fn=document.getElementById('fn-'+f.id);
+    const fdi=document.getElementById('fdi-'+f.id);
+    const fdt=document.getElementById('fdt-'+f.id);
+    if(fn)fn.value=fd.nome||f.label;
+    if(fdi)fdi.value=fd.inicio||f.ini||'';
+    if(fdt)fdt.value=fd.termino||f.ter||'';
+    calcDuracao(f.id);
+  });
+  DESTAQUES.forEach(d=>{
+    const dd=dados.destaquesData?.[d.id]||{};
+    const dp=document.getElementById('dp-'+d.id);
+    const dr=document.getElementById('dr-'+d.id);
+    const dn=document.getElementById('dn-'+d.id);
+    if(dp)dp.value=dd.previsto||'0';
+    if(dr)dr.value=dd.realizado||'0';
+    if(dn)dn.value=dd.nome||d.label;
+    calcDest(d.id);
+  });
+  ['resumo-list','riscos-list','passos-list'].forEach(id=>document.getElementById(id).innerHTML='');
+  // Aceita registros antigos (texto puro) e novos ({icone, texto})
+  (dados.resumo||[]).forEach(t => typeof t === 'string'
+    ? addText('resumo-list', t)
+    : addText('resumo-list', t?.texto || '', t?.icone || ''));
+  (dados.riscos||[]).forEach(r => typeof r === 'string'
+    ? addText('riscos-list', r)
+    : addText('riscos-list', r?.texto || '', r || {}));
+  (dados.passos||[]).forEach(t=>addText('passos-list',t));
+  atualizarStatus();
+  renderHist();
+}
+
+function atualizarStatus() {
+  const el=document.getElementById('edit-status');
+  el.textContent=registroId?'📌 Editando: '+fmtId(registroId):'✨ Novo registro';
+}
+
+// ═══════════════════════════════════════════════
+// SALVAR / CARREGAR
+// ═══════════════════════════════════════════════
+function salvar() {
+  const dados=coletarDados();
+  if(!dados.dataRef){toast('Informe a data',true);return;}
+  const hist=getHist();
+  const idx=hist.findIndex(h=>h.id===dados.id);
+  let atualizou=false;
+  if(idx>=0){
+    // Já existe registro para essa data → atualiza
+    if(!confirm('Já existe um registro para '+fmtDate(dados.dataRef)+'.\nDeseja atualizar os dados dessa data?')) return;
+    hist[idx]=dados; atualizou=true;
+  } else {
+    hist.unshift(dados);
+  }
+  hist.sort((a,b)=>b.id.localeCompare(a.id));
+  localStorage.setItem('nexus_historico',JSON.stringify(hist));
+  localStorage.setItem('nexus_dados',JSON.stringify(dados));
+  registroId=dados.id;
+  atualizarStatus();renderHist();
+  toast(atualizou ? '✅ Registro de '+fmtDate(dados.dataRef)+' atualizado!' : '✅ Novo registro salvo! Painel atualizado.');
+}
+
+function salvarDestaques() {
+  // Salva os destaques do desempenho como snapshot datado, preservando o histórico
+  const dataRef = document.getElementById('data-ref').value;
+  if (!dataRef) { toast('Informe a data de referência', true); return; }
+
+  const ativo = localStorage.getItem('nexus_dados');
+  const dados = ativo ? JSON.parse(ativo) : {};
+
+  dados.id      = dataRef;
+  dados.dataRef = dataRef;
+  dados.horaRef = document.getElementById('hora-ref').value || dados.horaRef || '00:00';
+
+  // Destaques do desempenho
+  if (!dados.destaquesData) dados.destaquesData = {};
+  DESTAQUES.forEach(d => {
+    dados.destaquesData[d.id] = {
+      previsto:  document.getElementById('dp-' + d.id)?.value || '0',
+      realizado: document.getElementById('dr-' + d.id)?.value || '0',
+      nome:      document.getElementById('dn-' + d.id)?.value || d.label,
+    };
+  });
+
+  // Grava no histórico (um registro por data), preservando os demais
+  const hist = getHist();
+  const idx = hist.findIndex(h => h.id === dataRef);
+  let atualizou = false;
+  if (idx >= 0) { hist[idx] = dados; atualizou = true; }
+  else { hist.unshift(dados); }
+  hist.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+  localStorage.setItem('nexus_dados', JSON.stringify(dados));
+  registroId = dados.id;
+  atualizarStatus(); renderHist();
+
+  toast(atualizou
+    ? '✅ Destaques de ' + fmtDate(dataRef) + ' atualizados!'
+    : '✅ Destaques salvos! Histórico preservado.');
+}
+
+function salvarTextos() {
+  // Salva Resumo Executivo, Riscos e Próximos Passos no registro ativo/datado
+  const dataRef = document.getElementById('data-ref').value;
+  if (!dataRef) { toast('Informe a data de referência', true); return; }
+
+  const ativo = localStorage.getItem('nexus_dados');
+  const dados = ativo ? JSON.parse(ativo) : {};
+
+  dados.id      = dataRef;
+  dados.dataRef = dataRef;
+  dados.horaRef = document.getElementById('hora-ref').value || dados.horaRef || '00:00';
+
+  // Textos
+  dados.resumo = getTexts('resumo-list');
+  dados.riscos = getTexts('riscos-list');
+  dados.passos = getTexts('passos-list');
+
+  // Grava no histórico (um registro por data), preservando os demais
+  const hist = getHist();
+  const idx = hist.findIndex(h => h.id === dataRef);
+  let atualizou = false;
+  if (idx >= 0) { hist[idx] = dados; atualizou = true; }
+  else { hist.unshift(dados); }
+  hist.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+  localStorage.setItem('nexus_dados', JSON.stringify(dados));
+  registroId = dados.id;
+  atualizarStatus(); renderHist();
+
+  toast(atualizou
+    ? '✅ Textos de ' + fmtDate(dataRef) + ' atualizados!'
+    : '✅ Textos salvos! Histórico preservado.');
+}
+
+// Salva a tabela Frentes e Atividades INTEIRA como snapshot datado.
+//
+// Antes isto estava dividido em duas funções que gravavam colunas diferentes da
+// mesma tabela: uma só os percentuais, outra só nomes e datas. Enquanto eram
+// duas tabelas separadas fazia sentido; depois do merge virou uma armadilha —
+// preencher as datas e clicar no botão dos percentuais descartava as datas sem
+// aviso. Agora uma única gravação cobre as oito colunas.
+//
+// O nome anterior era salvarProgresso, que colidia com outra função de mesmo
+// nome usada pelo formulário de Histórico de Progresso.
+function salvarFrentes() {
+  const dataRef = document.getElementById('data-ref').value;
+  if (!dataRef) { toast('Informe a data de referência', true); return; }
+
+  // Parte do registro ativo (se houver) para preservar textos e riscos
+  const ativo = localStorage.getItem('nexus_dados');
+  const dados = ativo ? JSON.parse(ativo) : {};
+
+  dados.id       = dataRef;
+  dados.dataRef  = dataRef;
+  dados.horaRef  = document.getElementById('hora-ref').value || dados.horaRef || '00:00';
+
+  dados.previsto  = document.getElementById('kpi-previsto').value  || '0';
+  dados.realizado = document.getElementById('kpi-realizado').value || '0';
+
+  // Todas as colunas da linha, de uma vez
+  if (!dados.frentesData) dados.frentesData = {};
+  FRENTES.forEach(f => {
+    const anterior = dados.frentesData[f.id] || {};
+    dados.frentesData[f.id] = {
+      ...anterior,
+      nome:      document.getElementById('fn-'  + f.id)?.value || anterior.nome || f.label,
+      inicio:    document.getElementById('fdi-' + f.id)?.value || anterior.inicio  || '',
+      termino:   document.getElementById('fdt-' + f.id)?.value || anterior.termino || '',
+      duracao:   document.getElementById('fdu-' + f.id)?.textContent || anterior.duracao || '',
+      previsto:  document.getElementById('fp-'  + f.id)?.value || '0',
+      realizado: document.getElementById('fr-'  + f.id)?.value || '0',
+      status:    document.getElementById('fs-'  + f.id)?.value || 'ok',
+    };
+  });
+
+  // Grava histórico preservando snapshots anteriores (um por data)
+  const hist = getHist();
+  const idx = hist.findIndex(h => h.id === dataRef);
+  let atualizou = false;
+  if (idx >= 0) {
+    hist[idx] = dados;
+    atualizou = true;
+  } else {
+    hist.unshift(dados);
+  }
+  hist.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+  localStorage.setItem('nexus_dados', JSON.stringify(dados));
+  registroId = dados.id;
+  atualizarStatus(); renderHist();
+
+  toast(atualizou
+    ? '✅ Frentes de ' + fmtDate(dataRef) + ' atualizadas no painel!'
+    : '✅ Frentes salvas! Registro anterior preservado no histórico.');
+}
+
+function salvarKPIs() {
+  // Salva os KPIs globais como snapshot datado, preservando o histórico
+  const dataRef = document.getElementById('data-ref').value;
+  if (!dataRef) { toast('Informe a data de referência', true); return; }
+
+  const ativo = localStorage.getItem('nexus_dados');
+  const dados = ativo ? JSON.parse(ativo) : {};
+
+  dados.id      = dataRef;
+  dados.dataRef = dataRef;
+  dados.horaRef = document.getElementById('hora-ref').value || dados.horaRef || '00:00';
+
+  // KPIs globais
+  dados.previsto  = document.getElementById('kpi-previsto').value  || '0';
+  dados.realizado = document.getElementById('kpi-realizado').value || '0';
+  dados.inicio    = document.getElementById('kpi-inicio').value    || '';
+  dados.termino   = document.getElementById('kpi-termino').value   || '';
+  dados.duracao   = (function(){const d1=parseDataBR(document.getElementById('kpi-inicio')?.value);const d2=parseDataBR(document.getElementById('kpi-termino')?.value);return (d1&&d2&&d2>d1)?diasUteis(d1,d2)+' dias':'';})();
+  dados.frentes   = document.getElementById('kpi-frentes').value   || '';
+
+  // Grava no histórico (um registro por data), preservando os demais
+  const hist = getHist();
+  const idx = hist.findIndex(h => h.id === dataRef);
+  let atualizou = false;
+  if (idx >= 0) { hist[idx] = dados; atualizou = true; }
+  else { hist.unshift(dados); }
+  hist.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+  localStorage.setItem('nexus_dados', JSON.stringify(dados));
+  registroId = dados.id;
+  atualizarStatus(); renderHist();
+
+  toast(atualizou
+    ? '✅ KPIs de ' + fmtDate(dataRef) + ' atualizados!'
+    : '✅ KPIs salvos! Histórico preservado.');
+}
+
+function limparKPIs() {
+  if (!confirm('Limpar os valores dos KPIs Globais?\n\nO histórico de registros (gráfico) será mantido.')) return;
+
+  // Zera os campos na tela
+  ['kpi-previsto','kpi-realizado','kpi-desvio','kpi-inicio','kpi-termino','kpi-duracao','kpi-frentes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  calcDesvioGlobal();
+
+  // Zera os KPIs no registro ATIVO, mantendo o histórico intacto
+  const ativo = localStorage.getItem('nexus_dados');
+  if (ativo) {
+    const dados = JSON.parse(ativo);
+    dados.previsto = '0';
+    dados.realizado = '0';
+    dados.inicio = '';
+    dados.termino = '';
+    dados.duracao = '';
+    dados.frentes = '';
+    localStorage.setItem('nexus_dados', JSON.stringify(dados));
+  }
+
+  toast('🗑️ KPIs limpos. Histórico mantido.');
+}
+
+function autoLoadUltimo() {
+  const saved=localStorage.getItem('nexus_dados');
+  if(saved)preencherForm(JSON.parse(saved));
+  else{
+    document.getElementById('kpi-inicio').value='15/12/2025';
+    document.getElementById('kpi-termino').value='27/05/2027';
+    document.getElementById('kpi-frentes').value='9';
+    calcDuracaoTotal();
+  }
+}
+
+function novoRegistro() {
+  registroId=null; setAgora();
+  const hist=getHist();
+  if(hist.length>0){preencherForm(hist[0]);registroId=null;setAgora();}
+  else buildDefaultTexts();
+  atualizarStatus();
+  toast('Novo registro (dados do último como base)');
+}
+
+function carregarRegistro(id){const h=getHist().find(h=>h.id===id);if(h){preencherForm(h);toast('Registro carregado');}}
+function pubRegistro(id){
+  const h=getHist().find(h=>h.id===id);
+  if(h){localStorage.setItem('nexus_dados',JSON.stringify(h));renderHist();toast('✅ Painel atualizado com '+fmtId(id));}
+}
+function delRegistro(id,e){
+  e.stopPropagation();
+  if(!confirm('Remover registro '+fmtId(id)+'?'))return;
+  let hist=getHist().filter(h=>h.id!==id);
+  localStorage.setItem('nexus_historico',JSON.stringify(hist));
+  const ativo=localStorage.getItem('nexus_dados');
+  if(ativo&&JSON.parse(ativo).id===id){if(hist.length)localStorage.setItem('nexus_dados',JSON.stringify(hist[0]));else localStorage.removeItem('nexus_dados');}
+  if(registroId===id)registroId=null;
+  renderHist();toast('Registro removido');
+}
+
+// ═══════════════════════════════════════════════
+// HISTÓRICO
+// ═══════════════════════════════════════════════
+function getHist(){
+  try { return JSON.parse(localStorage.getItem('nexus_historico')||'[]'); }
+  catch (e) { return []; }
+}
+function renderHist(){
+  const el=document.getElementById('hist-list');
+  if(!el)return; // seção de histórico de registros não está presente nesta página
+  const filtroEl=document.getElementById('hist-filtro');
+  const filtro=filtroEl?filtroEl.value:'';
+  const hist=getHist();
+  const ativoId=(()=>{const d=localStorage.getItem('nexus_dados');return d?JSON.parse(d).id:null})();
+  let lista=filtro?hist.filter(h=>h.dataRef===filtro):hist;
+  const countEl=document.getElementById('hist-count');
+  if(countEl)countEl.textContent=lista.length+' registro(s)';
+  if(!lista.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">Nenhum registro encontrado.</div>';return;}
+  const porDia={};lista.forEach(h=>{if(!porDia[h.dataRef])porDia[h.dataRef]=[];porDia[h.dataRef].push(h)});
+  el.innerHTML=Object.entries(porDia).map(([dia,regs])=>{
+    const itens=regs.map(h=>{
+      const p=parseFloat(h.previsto)||0,r=parseFloat(h.realizado)||0,d=r-p;
+      const ativoClass=h.id===ativoId?' active':'';
+      const editando=h.id===registroId?' 📝':'';
+      return`<div class="hist-item${ativoClass}" onclick="carregarRegistro('${h.id}')">
+        <span class="hi-time">${h.horaRef||'--:--'}${editando}</span>
+        <span class="hi-vals">P:<strong>${h.previsto}%</strong> R:<strong>${h.realizado}%</strong></span>
+        <span class="hi-desvio ${d<0?'neg':d>0?'pos':''}">${(d>=0?'+':'')+d}p.p.</span>
+        <button class="hi-load" onclick="event.stopPropagation();pubRegistro('${h.id}')" title="Publicar no painel">▶ Painel</button>
+        <button class="hi-del" onclick="delRegistro('${h.id}',event)" title="Remover">✕</button>
+      </div>`;
+    }).join('');
+    const ultimaHora=regs[0]?.horaRef?(' · atualizado '+regs[0].horaRef):'';
+    return`<div><div class="hist-day-label">📅 ${fmtDate(dia)}${ultimaHora}</div>${itens}</div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// HISTÓRICO DE PROGRESSO POR DATA (MODAL)
+// ═══════════════════════════════════════════════
+function abrirHistoricoProgresso() {
+  const hist = getHist();
+  const sel = document.getElementById('hist-prog-select');
+  const body = document.getElementById('hist-prog-body');
+  if (!hist.length) {
+    document.getElementById('hist-prog-modal').style.display = 'block';
+    sel.innerHTML = '';
+    body.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro salvo ainda. Salve o progresso para gerar histórico.</div>';
+    return;
+  }
+  // Ordena da data mais recente para a mais antiga
+  const ordenado = [...hist].sort((a,b) => (b.id||b.dataRef||'').localeCompare(a.id||a.dataRef||''));
+  sel.innerHTML = ordenado.map((h,i) =>
+    `<option value="${h.id}">${fmtDate(h.dataRef)}${h.horaRef?(' · '+h.horaRef):''}${i===0?'  (mais recente)':''}</option>`
+  ).join('');
+  document.getElementById('hist-prog-modal').style.display = 'block';
+  renderListaDatas();
+  renderHistoricoProgresso();
+}
+
+function renderListaDatas() {
+  const hist = getHist();
+  const cont = document.getElementById('hist-prog-datas');
+  if (!cont) return;
+  if (!hist.length) {
+    cont.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:8px 0;">Nenhum registro.</div>';
+    return;
+  }
+  const ordenado = [...hist].sort((a,b) => (b.id||b.dataRef||'').localeCompare(a.id||a.dataRef||''));
+  cont.innerHTML = ordenado.map(h => {
+    const gp = parseFloat(h.previsto)||0, gr = parseFloat(h.realizado)||0;
+    return `<label style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;cursor:pointer;">
+      <input type="checkbox" class="hist-data-chk" value="${h.id}" style="width:15px;height:15px;accent-color:var(--red);cursor:pointer;"/>
+      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${fmtDate(h.dataRef)}${h.horaRef?(' · '+h.horaRef):''}</span>
+      <span style="font-size:10px;color:var(--muted2);">Prev ${gp}% · Real ${gr}%</span>
+      <button onclick="apagarUmaData('${h.id}',event)" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 4px;" title="Apagar esta data">✕</button>
+    </label>`;
+  }).join('');
+}
+
+function selecionarTodasDatas(marcar) {
+  document.querySelectorAll('.hist-data-chk').forEach(c => c.checked = marcar);
+}
+
+function apagarUmaData(id, e) {
+  if (e) e.preventDefault();
+  if (!confirm('Apagar o registro de ' + fmtDate(id) + '?')) return;
+  removerDatasHist([id]);
+}
+
+function apagarDatasSelecionadas() {
+  const ids = [...document.querySelectorAll('.hist-data-chk:checked')].map(c => c.value);
+  if (!ids.length) { toast('Selecione ao menos uma data', true); return; }
+  if (!confirm('Apagar ' + ids.length + ' registro(s) selecionado(s)? Esta ação não pode ser desfeita.')) return;
+  removerDatasHist(ids);
+}
+
+function removerDatasHist(ids) {
+  let hist = getHist().filter(h => !ids.includes(h.id));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+
+  // Se o registro ativo foi apagado, aponta para o mais recente restante (ou limpa)
+  const ativo = localStorage.getItem('nexus_dados');
+  if (ativo) {
+    const ativoId = JSON.parse(ativo).id;
+    if (ids.includes(ativoId)) {
+      if (hist.length) {
+        const maisRecente = [...hist].sort((a,b)=>(b.id||'').localeCompare(a.id||''))[0];
+        localStorage.setItem('nexus_dados', JSON.stringify(maisRecente));
+      } else {
+        localStorage.removeItem('nexus_dados');
+      }
+    }
+  }
+
+  toast('🗑 ' + ids.length + ' registro(s) apagado(s)');
+
+  // Re-renderiza tudo
+  if (!hist.length) {
+    document.getElementById('hist-prog-select').innerHTML = '';
+    document.getElementById('hist-prog-body').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro salvo ainda.</div>';
+    renderListaDatas();
+  } else {
+    abrirHistoricoProgresso();
+  }
+  if (typeof renderHist === 'function') renderHist();
+}
+
+function fecharHistoricoProgresso() {
+  document.getElementById('hist-prog-modal').style.display = 'none';
+}
+
+function renderHistoricoProgresso() {
+  const id = document.getElementById('hist-prog-select').value;
+  const h = getHist().find(x => x.id === id);
+  const body = document.getElementById('hist-prog-body');
+  if (!h) { body.innerHTML = ''; return; }
+
+  const linhas = FRENTES.map(f => {
+    const fd = h.frentesData?.[f.id] || { previsto:'0', realizado:'0' };
+    const pv = parseFloat(fd.previsto)||0, rv = parseFloat(fd.realizado)||0, dev = rv - pv;
+    const devColor = dev >= -5 ? 'var(--green)' : dev >= -10 ? 'var(--yellow)' : dev >= -15 ? 'var(--red)' : 'var(--purple)';
+    const indent = f.nivel===1 ? 'padding-left:20px' : f.nivel===2 ? 'padding-left:36px' : '';
+    const nameStyle = f.nivel>0 ? 'color:var(--muted2);font-size:11px' : 'color:var(--text);font-weight:600';
+    return `<tr>
+      <td style="${indent};${nameStyle};padding:7px 8px;">${fd.nome||f.label}</td>
+      <td style="text-align:center;padding:7px 8px;color:var(--blue2);font-weight:600;">${pv}%</td>
+      <td style="text-align:center;padding:7px 8px;color:var(--green);font-weight:600;">${rv}%</td>
+      <td style="text-align:center;padding:7px 8px;color:${devColor};font-weight:700;">${(dev>=0?'+':'')+dev} p.p.</td>
+    </tr>`;
+  }).join('');
+
+  const gp = parseFloat(h.previsto)||0, gr = parseFloat(h.realizado)||0, gdev = gr - gp;
+  body.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;">Previsto Global</div>
+        <div style="font-size:22px;font-weight:800;color:var(--blue2);">${gp}%</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;">Realizado Global</div>
+        <div style="font-size:22px;font-weight:800;color:var(--green);">${gr}%</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;">Desvio Global</div>
+        <div style="font-size:22px;font-weight:800;color:${gdev>=0?'var(--green)':'var(--red)'};">${(gdev>=0?'+':'')+gdev}</div>
+      </div>
+    </div>
+    <table class="frente-table" style="width:100%;">
+      <thead><tr>
+        <th style="text-align:left;">Frente / Atividade</th>
+        <th style="text-align:center;">Previsto</th>
+        <th style="text-align:center;">Realizado</th>
+        <th style="text-align:center;">Desvio</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+}
+
+// ═══════════════════════════════════════════════
+// HISTÓRICO DE DESTAQUES POR DATA (MODAL)
+// ═══════════════════════════════════════════════
+function abrirHistoricoDestaques() {
+  const hist = getHist();
+  const sel = document.getElementById('hist-dest-select');
+  const body = document.getElementById('hist-dest-body');
+  document.getElementById('hist-dest-modal').style.display = 'block';
+  if (!hist.length) {
+    sel.innerHTML = '';
+    body.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro salvo ainda. Salve os destaques para gerar histórico.</div>';
+    renderListaDatasDest();
+    return;
+  }
+  const ordenado = [...hist].sort((a,b) => (b.id||b.dataRef||'').localeCompare(a.id||a.dataRef||''));
+  sel.innerHTML = ordenado.map((h,i) =>
+    `<option value="${h.id}">${fmtDate(h.dataRef)}${h.horaRef?(' · '+h.horaRef):''}${i===0?'  (mais recente)':''}</option>`
+  ).join('');
+  renderListaDatasDest();
+  renderHistoricoDestaques();
+}
+
+function renderListaDatasDest() {
+  const hist = getHist();
+  const cont = document.getElementById('hist-dest-datas');
+  if (!cont) return;
+  if (!hist.length) {
+    cont.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:8px 0;">Nenhum registro.</div>';
+    return;
+  }
+  const ordenado = [...hist].sort((a,b) => (b.id||b.dataRef||'').localeCompare(a.id||a.dataRef||''));
+  cont.innerHTML = ordenado.map(h => {
+    const gp = parseFloat(h.previsto)||0, gr = parseFloat(h.realizado)||0;
+    return `<label style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;cursor:pointer;">
+      <input type="checkbox" class="hist-dest-chk" value="${h.id}" style="width:15px;height:15px;accent-color:var(--red);cursor:pointer;"/>
+      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${fmtDate(h.dataRef)}${h.horaRef?(' · '+h.horaRef):''}</span>
+      <span style="font-size:10px;color:var(--muted2);">Prev ${gp}% · Real ${gr}%</span>
+      <button onclick="apagarUmaDataDest('${h.id}',event)" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 4px;" title="Apagar esta data">✕</button>
+    </label>`;
+  }).join('');
+}
+
+function selecionarTodasDatasDest(marcar) {
+  document.querySelectorAll('.hist-dest-chk').forEach(c => c.checked = marcar);
+}
+
+function apagarUmaDataDest(id, e) {
+  if (e) e.preventDefault();
+  const item = getHist().find(h => h.id === id);
+  if (!confirm('Apagar o registro de ' + (item ? fmtDate(item.dataRef) : id) + '?')) return;
+  removerDatasHistDest([id]);
+}
+
+function apagarDatasSelecionadasDest() {
+  const ids = [...document.querySelectorAll('.hist-dest-chk:checked')].map(c => c.value);
+  if (!ids.length) { toast('Selecione ao menos uma data', true); return; }
+  if (!confirm('Apagar ' + ids.length + ' registro(s) selecionado(s)? Esta ação não pode ser desfeita.')) return;
+  removerDatasHistDest(ids);
+}
+
+function removerDatasHistDest(ids) {
+  let hist = getHist().filter(h => !ids.includes(h.id));
+  localStorage.setItem('nexus_historico', JSON.stringify(hist));
+
+  // Se o registro ativo foi apagado, aponta para o mais recente restante (ou limpa)
+  const ativo = localStorage.getItem('nexus_dados');
+  if (ativo) {
+    const ativoId = JSON.parse(ativo).id;
+    if (ids.includes(ativoId)) {
+      if (hist.length) {
+        const maisRecente = [...hist].sort((a,b)=>(b.id||'').localeCompare(a.id||''))[0];
+        localStorage.setItem('nexus_dados', JSON.stringify(maisRecente));
+      } else {
+        localStorage.removeItem('nexus_dados');
+      }
+    }
+  }
+
+  toast('🗑 ' + ids.length + ' registro(s) apagado(s)');
+
+  if (!hist.length) {
+    document.getElementById('hist-dest-select').innerHTML = '';
+    document.getElementById('hist-dest-body').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro salvo ainda.</div>';
+    renderListaDatasDest();
+  } else {
+    abrirHistoricoDestaques();
+  }
+  if (typeof renderHist === 'function') renderHist();
+}
+
+function fecharHistoricoDestaques() {
+  document.getElementById('hist-dest-modal').style.display = 'none';
+}
+
+function renderHistoricoDestaques() {
+  const id = document.getElementById('hist-dest-select').value;
+  const h = getHist().find(x => x.id === id);
+  const body = document.getElementById('hist-dest-body');
+  if (!h) { body.innerHTML = ''; return; }
+
+  const linhas = DESTAQUES.map(d => {
+    const dd = h.destaquesData?.[d.id] || { previsto:'0', realizado:'0' };
+    const pv = parseFloat(dd.previsto)||0, rv = parseFloat(dd.realizado)||0, dev = rv - pv;
+    const devColor = dev >= -5 ? 'var(--green)' : dev >= -10 ? 'var(--yellow)' : dev >= -15 ? 'var(--red)' : 'var(--purple)';
+    return `<tr>
+      <td style="color:var(--text);font-weight:600;padding:7px 8px;">${d.label}</td>
+      <td style="text-align:center;padding:7px 8px;color:var(--blue2);font-weight:600;">${pv}%</td>
+      <td style="text-align:center;padding:7px 8px;color:var(--green);font-weight:600;">${rv}%</td>
+      <td style="text-align:center;padding:7px 8px;color:${devColor};font-weight:700;">${(dev>=0?'+':'')+dev} p.p.</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="font-size:11px;color:var(--muted2);margin-bottom:10px;">Registro de <strong style="color:var(--text);">${fmtDate(h.dataRef)}${h.horaRef?(' · '+h.horaRef):''}</strong></div>
+    <table class="frente-table" style="width:100%;">
+      <thead><tr>
+        <th style="text-align:left;">Item</th>
+        <th style="text-align:center;">Previsto</th>
+        <th style="text-align:center;">Realizado</th>
+        <th style="text-align:center;">Desvio</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+}
+
+// Fecha modal ao clicar fora
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('hist-prog-modal');
+  if (e.target === modal) fecharHistoricoProgresso();
+  const modalD = document.getElementById('hist-dest-modal');
+  if (e.target === modalD) fecharHistoricoDestaques();
+});
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function fmtDate(iso){if(!iso)return'–';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
+function fmtId(id){if(!id)return'–';const[date,time]=id.split('T');return fmtDate(date)+(time?' às '+time:'')}
+function toast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.className='show'+(err?' error':'');setTimeout(()=>el.className='',3200)}
+
+// ═══════════════════════════════════════════════
+// BACKUP: EXPORTAR / IMPORTAR
+// ═══════════════════════════════════════════════
+// Prefixo das chaves de localStorage deste projeto. Se a pasta for duplicada
+// para um projeto novo e o prefixo trocado, esta linha acompanha a troca.
+const STORAGE_PREFIX = 'nexus_';
+
+// O backup guarda as chaves SEM o prefixo, para que o arquivo possa ser
+// importado em outro projeto (que aplica o próprio prefixo na importação).
+const BACKUP_SUFIXOS = [
+  'dados',                 // registro ativo exibido no painel
+  'historico',             // todos os registros por data
+  'estrutura',             // lista editável de frentes e atividades
+  'central_dados',         // sprints da Central
+  'revenue_sprints',       // sprints do Revenue
+  'consolidado_override',  // ajustes manuais do consolidado
+  'progresso',             // histórico de progresso previsto vs realizado
+];
+
+// Lê uma chave e devolve o valor já desserializado (ou a string crua)
+function _lerChave(sufixo) {
+  const raw = localStorage.getItem(STORAGE_PREFIX + sufixo);
+  if (raw === null) return undefined;
+  try { return JSON.parse(raw); } catch (e) { return raw; }
+}
+
+function exportarBackup() {
+  const dados = {};
+  BACKUP_SUFIXOS.forEach(s => {
+    const v = _lerChave(s);
+    if (v !== undefined) dados[s] = v;
+  });
+
+  if (!Object.keys(dados).length) {
+    toast('Não há dados salvos para exportar.', true);
+    return;
+  }
+
+  const pacote = {
+    app: 'painel-nexus',
+    versao: 1,
+    geradoEm: new Date().toISOString(),
+    prefixoOrigem: STORAGE_PREFIX,
+    registros: Array.isArray(dados.historico) ? dados.historico.length : 0,
+    dados,
+  };
+
+  // Nome do arquivo com data e hora, para não sobrescrever backups anteriores
+  const ag = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const stamp = `${ag.getFullYear()}-${p(ag.getMonth() + 1)}-${p(ag.getDate())}`
+              + `-${p(ag.getHours())}${p(ag.getMinutes())}`;
+  const nome = `backup-${STORAGE_PREFIX.replace(/_$/, '')}-${stamp}.json`;
+
+  const blob = new Blob([JSON.stringify(pacote, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  toast(`✅ Backup gerado: ${nome} (${pacote.registros} registros)`);
+}
+
+function importarBackup(ev) {
+  const arquivo = ev.target.files && ev.target.files[0];
+  ev.target.value = ''; // permite reimportar o mesmo arquivo depois
+  if (!arquivo) return;
+
+  const leitor = new FileReader();
+  leitor.onerror = () => toast('Não foi possível ler o arquivo.', true);
+  leitor.onload = () => {
+    let pacote;
+    try {
+      pacote = JSON.parse(leitor.result);
+    } catch (e) {
+      toast('Arquivo inválido: não é um JSON válido.', true);
+      return;
+    }
+
+    if (!pacote || typeof pacote.dados !== 'object' || pacote.dados === null) {
+      toast('Arquivo inválido: não parece um backup do painel.', true);
+      return;
+    }
+
+    // Só aplica chaves conhecidas, ignorando qualquer coisa a mais no arquivo
+    const aplicar = BACKUP_SUFIXOS.filter(s => pacote.dados[s] !== undefined);
+    if (!aplicar.length) {
+      toast('O arquivo não contém nenhum dado reconhecido.', true);
+      return;
+    }
+
+    const qtd = Array.isArray(pacote.dados.historico) ? pacote.dados.historico.length : 0;
+    const quando = pacote.geradoEm ? new Date(pacote.geradoEm).toLocaleString('pt-BR') : 'data desconhecida';
+    const ok = confirm(
+      `Importar este backup vai SUBSTITUIR os dados atuais deste painel.\n\n`
+      + `Arquivo gerado em: ${quando}\n`
+      + `Registros no histórico: ${qtd}\n`
+      + `Dados que serão substituídos: ${aplicar.join(', ')}\n\n`
+      + `Uma cópia de segurança do estado atual será guardada no navegador antes de aplicar.\n\n`
+      + `Deseja continuar?`
+    );
+    if (!ok) { toast('Importação cancelada.'); return; }
+
+    // Rede de segurança: snapshot do estado atual antes de sobrescrever
+    try {
+      const antes = {};
+      BACKUP_SUFIXOS.forEach(s => {
+        const raw = localStorage.getItem(STORAGE_PREFIX + s);
+        if (raw !== null) antes[s] = raw;
+      });
+      localStorage.setItem(STORAGE_PREFIX + 'pre_import', JSON.stringify({
+        geradoEm: new Date().toISOString(), dados: antes,
+      }));
+    } catch (e) {
+      console.warn('Não foi possível guardar o snapshot pré-importação.', e);
+    }
+
+    try {
+      aplicar.forEach(s => {
+        const v = pacote.dados[s];
+        localStorage.setItem(STORAGE_PREFIX + s, typeof v === 'string' ? v : JSON.stringify(v));
+      });
+    } catch (e) {
+      toast('Erro ao gravar os dados importados: ' + e.message, true);
+      return;
+    }
+
+    toast(`✅ Backup importado (${qtd} registros). Enviando ao servidor…`);
+    // Aguarda o envio ao banco terminar antes de recarregar a página
+    const envio = (window.NexusSync && window.NexusSync.configurado)
+      ? window.NexusSync.flush() : Promise.resolve();
+    envio.then(
+      () => { toast('✅ Backup importado e salvo no servidor. Recarregando…'); setTimeout(() => location.reload(), 800); },
+      () => toast('Backup aplicado neste navegador, mas o envio ao servidor falhou. Verifique a conexão e tente importar de novo.', true)
+    );
+  };
+  leitor.readAsText(arquivo);
+}
+</script>
+</body>
+</html>

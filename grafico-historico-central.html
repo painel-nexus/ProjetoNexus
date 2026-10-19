@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <!-- Sincronização com o banco (Supabase): deve ser o primeiro script da página -->
+  <script src="sync.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0b1120"/>
+  <title>Nexus · Gráfico Histórico Central</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #030811; --surface: #071224; --surface2: #182e4d; --card: #0b1a30;
+      --border: #112240; --border2: #182e4d;
+      --blue: #3b82f6; --blue2: #60a5fa;
+      --green: #22c55e; --green2: #a3e635; --yellow: #eab308; --red: #f43f5e; --purple: #a78bfa; --orange: #fb923c;
+      --text: #e2e8f0; --text2: #94a3b8; --muted: #64748b;
+    }
+    html { background: var(--bg); }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      font-size: 13px; line-height: 1.5; padding: 0 0 40px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* HEADER */
+    .hdr {
+      display: flex; align-items: stretch;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      min-height: 64px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hdr-logo { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-right: 1px solid var(--border); }
+    .hdr-logo img { height: 40px; width: auto; }
+    .hdr-logo-text small { display: block; font-size: 9px; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; }
+    .hdr-logo-text strong { font-size: 22px; font-weight: 900; color: var(--text); letter-spacing: 1px; }
+    .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; }
+    .hdr-title h1 { font-size: 18px; font-weight: 800; }
+    .hdr-title p { font-size: 12px; color: var(--text2); }
+    .hdr-actions { display: flex; align-items: center; padding: 12px 20px; }
+    .hdr-left { display: flex; align-items: center; gap: 12px; }
+    .hdr-left h1 { font-size: 18px; font-weight: 800; }
+    .hdr-left p { font-size: 12px; color: var(--muted); }
+    .btn-back {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none;
+    }
+    .btn-back:hover { border-color: var(--blue); color: var(--text); }
+    .btn-hist-link { transition: border-color .15s, background .15s; }
+    .btn-hist-link:hover { border-color: var(--blue) !important; background: #16233b !important; }
+    .btn-export-pdf {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-export-pdf:hover { border-color: var(--blue); color: var(--text); }
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .btn-back, .btn-export-pdf, .btn-add-dados, .btn-edit-dados { display: none !important; }
+      .hdr { position: static; }
+      .card { break-inside: avoid; }
+    }
+
+    /* CONTENT */
+    .content { max-width: none; margin: 0 auto; padding: 16px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--muted2); margin-bottom: 16px;
+      color: var(--text2);
+    }
+
+    /* CHART */
+    .chart-wrap { position: relative; height: 380px; }
+    canvas { width: 100%; height: 100%; }
+
+    /* TOOLTIP */
+    .chart-tip {
+      display: none; position: absolute; pointer-events: none;
+      background: #0f172a; border: 1px solid var(--border2); border-radius: 10px;
+      padding: 10px 12px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55); z-index: 10; white-space: nowrap;
+    }
+    .chart-tip .tip-data { color: var(--text2); font-size: 11px; margin-bottom: 5px; }
+    .chart-tip .tip-linha { display: flex; justify-content: space-between; gap: 18px; }
+    .chart-tip .tip-linha strong { font-weight: 800; }
+    .chart-tip .tip-sep { border-top: 1px solid rgba(255,255,255,.1); margin: 5px 0; }
+
+    /* LEGEND */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .leg-line { width: 20px; height: 3px; border-radius: 2px; }
+
+    /* CHART NOTE */
+    .chart-note {
+      margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border);
+      font-size: 11px; font-style: italic; color: #a78bfa; line-height: 1.5;
+    }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      background: #0f172a; padding: 10px 12px; text-align: left;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border2);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    tbody td { padding: 8px 12px; color: var(--text); white-space: nowrap; }
+    tbody td.sprint { font-weight: 700; color: var(--blue2); }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* BOTÃO INCLUIR DADOS */
+    .btn-add-dados {
+      background: var(--blue); border: none; color: #fff;
+      padding: 8px 16px; border-radius: 8px; font-size: 12px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .btn-add-dados:hover { background: var(--blue2); }
+    .btn-edit-dados {
+      background: transparent; border: 1px solid var(--blue); color: var(--blue);
+      padding: 8px 16px; border-radius: 8px; font-size: 12px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .btn-edit-dados:hover { background: rgba(79,142,247,.12); }
+    .btn-edit-dados.active { background: var(--blue); color: #fff; }
+    .btn-row-edit {
+      background: transparent; border: 1px solid var(--border2, #2d3f55); color: var(--blue);
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit;
+    }
+    .btn-row-edit:hover { background: rgba(79,142,247,.12); }
+    .btn-row-del {
+      background: rgba(242,92,92,.12); border: 1px solid rgba(242,92,92,.4); color: var(--red);
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit;
+      margin-left: 6px;
+    }
+    .btn-row-del:hover { background: rgba(242,92,92,.24); }
+    .col-acoes { display: none; }
+    body.edit-mode .col-acoes { display: table-cell; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.6); z-index: 999;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 16px; padding: 24px; width: 100%; max-width: 440px;
+    }
+    .modal h3 { font-size: 16px; font-weight: 800; margin-bottom: 18px; }
+    .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field.full { grid-column: 1 / -1; }
+    .modal-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .modal-field input {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+      padding: 10px 12px; border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .modal-field input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+    .btn-cancel { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); padding: 10px 20px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-save { background: var(--green); border: none; color: #05231a; padding: 10px 22px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+    /* CONCLUSÃO */
+    .conclusao-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .conc-card {
+      background: var(--card); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 16px; text-align: center;
+    }
+    .conc-val { font-size: 30px; font-weight: 900; letter-spacing: -1px; line-height: 1; margin-bottom: 6px; }
+    .conc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .conclusao-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .conclusao-list li {
+      display: flex; gap: 12px; font-size: 13px; color: var(--text2); line-height: 1.6;
+      padding: 12px 14px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; border-left: 3px solid var(--blue);
+    }
+    .conclusao-list li.warn  { border-left-color: var(--yellow); }
+    .conclusao-list li.crit  { border-left-color: var(--red); }
+    .conclusao-list li.ok    { border-left-color: var(--green); }
+    .conclusao-list li .ci { font-size: 16px; flex-shrink: 0; }
+    .conclusao-list li .ctxt { flex: 1; }
+    .conc-del {
+      background: transparent; border: 1px solid var(--border2); color: var(--muted);
+      width: 26px; height: 26px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+      font-size: 13px; line-height: 1; font-family: inherit;
+    }
+    .conc-del:hover { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">
+    <img src="LOGO MV.png" alt="Logo"/>
+    <div class="hdr-logo-text">
+      <small>Projeto</small>
+      <strong>NEXUS</strong>
+    </div>
+  </div>
+  <div class="hdr-title">
+    <h1>HISTÓRICO CENTRAL</h1>
+    <p>Evolução por Sprint — Desenvolvimento e Validação</p>
+  </div>
+  <div class="hdr-actions" style="gap:14px">
+    <div style="border:1px solid var(--border2);border-radius:6px;padding:6px 12px;text-align:center">
+      <div style="font-size:10px;color:var(--text2)">Data de referência</div>
+      <div style="font-size:14px;font-weight:700;color:var(--blue2)" id="hdr-data-ref">--/--/----</div>
+    </div>
+    <a class="btn-back" href="painel-nexus.html">← Voltar ao Painel</a>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- NAVEGAÇÃO ENTRE GRÁFICOS -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <a href="painel-nexus.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+      <span style="width:8px;height:8px;border-radius:2px;background:var(--blue2)"></span> Painel Nexus
+    </a>
+    <a href="grafico-historico-central.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+      <span style="width:8px;height:8px;border-radius:2px;background:var(--green)"></span> Central
+    </a>
+    <a href="grafico-historico-revenue.html" class="btn-hist-link" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:11px;font-weight:600;text-decoration:none">
+      <span style="width:8px;height:8px;border-radius:2px;background:var(--orange,#fb923c)"></span> Revenue
+    </a>
+  </div>
+
+  <!-- GRÁFICO -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:0">CENTRAL - Evolução dos Indicadores por Sprint</div>
+      <button class="btn-export-pdf" onclick="window.print()">📄 Exportar PDF</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-tip" id="chart-tip"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <p class="chart-note">Premissa: o previsto de validação considerou o percentual de desenvolvimento previsto de 2 sprints antes da atual.</p>
+  </div>
+
+  <!-- TABELA -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px" onclick="toggleTabelaSprints()">
+        <span id="chevron-sprints" style="display:inline-block;color:var(--blue2);transition:transform .2s;font-size:12px">▾</span>
+        Central Dados Detalhados
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-add-dados" onclick="abrirModal()">+ Incluir dados</button>
+        <button class="btn-edit-dados" id="btn-edit-dados" onclick="toggleEdicao()">✏️ Editar dados</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="tabela-sprints-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sprint</th>
+            <th>Início</th>
+            <th>Término</th>
+            <th>% Prev. Desenv</th>
+            <th>% Real. Desenv</th>
+            <th>Prev. Validado (Scrum)**</th>
+            <th>% Validado Real</th>
+            <th class="col-acoes">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px">** Previsto Validado Central com Estratégia Scrum Correta</p>
+  </div>
+
+</div>
+
+<!-- MODAL INCLUIR DADOS -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Incluir dados do Sprint</h3>
+    <div class="modal-grid">
+      <div class="modal-field full">
+        <label>Sprint</label>
+        <input type="text" id="m-sprint" placeholder="ex: Sprint 15"/>
+      </div>
+      <div class="modal-field">
+        <label>Início</label>
+        <input type="text" id="m-ini" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>Término</label>
+        <input type="text" id="m-ter" placeholder="dd/mm/aa" inputmode="numeric" oninput="mascaraDataSemana(this)"/>
+      </div>
+      <div class="modal-field">
+        <label>% Prev. Desenv</label>
+        <input type="text" id="m-prevDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Real. Desenv</label>
+        <input type="text" id="m-realDesenv" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>Prev. Validado (Scrum)</label>
+        <input type="text" id="m-prevValidScrum" placeholder="0 ou NA"/>
+      </div>
+      <div class="modal-field">
+        <label>% Validado Real</label>
+        <input type="text" id="m-valid" placeholder="0 ou NA"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-save" onclick="salvarDados()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PERSISTÊNCIA (localStorage) ──
+const STORAGE_KEY = 'nexus_central_dados';
+
+// ── DADOS PADRÃO ──
+const DADOS_DEFAULT = [
+  { sprint:'Sprint 1',  ini:'qua. 07/01/26', ter:'ter. 20/01/26', prevDesenv:10, realDesenv:4,  prevValidScrum:0,  valid:0  },
+  { sprint:'Sprint 2',  ini:'qua. 21/01/26', ter:'qua. 04/02/26', prevDesenv:15, realDesenv:9,  prevValidScrum:0,  valid:0  },
+  { sprint:'Sprint 3',  ini:'qui. 05/02/26', ter:'seg. 23/02/26', prevDesenv:20, realDesenv:15, prevValidScrum:4,  valid:0  },
+  { sprint:'Sprint 4',  ini:'seg. 23/02/26', ter:'seg. 09/03/26', prevDesenv:24, realDesenv:20, prevValidScrum:9,  valid:0  },
+  { sprint:'Sprint 5',  ini:'ter. 10/03/26', ter:'ter. 24/03/26', prevDesenv:29, realDesenv:24, prevValidScrum:15, valid:0  },
+  { sprint:'Sprint 6',  ini:'qua. 25/03/26', ter:'qui. 09/04/26', prevDesenv:34, realDesenv:30, prevValidScrum:20, valid:0  },
+  { sprint:'Sprint 7',  ini:'sex. 10/04/26', ter:'seg. 27/04/26', prevDesenv:39, realDesenv:35, prevValidScrum:24, valid:0  },
+  { sprint:'Sprint 8',  ini:'ter. 28/04/26', ter:'seg. 18/05/26', prevDesenv:45, realDesenv:41, prevValidScrum:30, valid:17 },
+  { sprint:'Sprint 9',  ini:'ter. 19/05/26', ter:'ter. 02/06/26', prevDesenv:50, realDesenv:46, prevValidScrum:35, valid:17 },
+  { sprint:'Sprint 10', ini:'qua. 03/06/26', ter:'qua. 17/06/26', prevDesenv:54, realDesenv:51, prevValid:26, prevValidScrum:41, valid:17 },
+  { sprint:'Sprint 11', ini:'qui. 18/06/26', ter:'sex. 03/07/26', prevDesenv:59, realDesenv:57, prevValid:32, prevValidScrum:46, valid:17 },
+  { sprint:'Sprint 12', ini:'seg. 06/07/26', ter:'seg. 20/07/26', prevDesenv:64, realDesenv:62, prevValid:37, prevValidScrum:51, valid:17 },
+  { sprint:'Sprint 13', ini:'ter. 21/07/26', ter:'ter. 04/08/26', prevDesenv:71, realDesenv:66, prevValid:46, prevValidScrum:57, valid:17 },
+  { sprint:'Sprint 14', ini:'qua. 05/08/26', ter:'qui. 20/08/26', prevDesenv:73, realDesenv:71, prevValid:48, prevValidScrum:62, valid:17 },
+];
+
+// Carrega do localStorage se existir, senão usa o padrão
+let DADOS;
+try {
+  const salvo = localStorage.getItem(STORAGE_KEY);
+  DADOS = salvo ? JSON.parse(salvo) : JSON.parse(JSON.stringify(DADOS_DEFAULT));
+} catch (e) {
+  DADOS = JSON.parse(JSON.stringify(DADOS_DEFAULT));
+}
+
+function salvarNoStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DADOS)); } catch (e) {}
+}
+
+// Verifica se um valor é "NA" (não deve ser plotado)
+function isNA(v) {
+  return v === 'NA' || v === null || v === undefined ||
+         (typeof v === 'string' && v.trim().toUpperCase() === 'NA');
+}
+
+// Converte o valor de um input: vazio => 0, "NA" => 'NA', senão número
+function parseValor(id) {
+  const raw = (document.getElementById(id).value || '').trim();
+  if (raw === '') return 0;
+  if (raw.toUpperCase() === 'NA') return 'NA';
+  const n = parseFloat(raw.replace(',', '.'));
+  return isNaN(n) ? 'NA' : n;
+}
+
+const SERIES = [
+  { key:'prevDesenv',     label:'% Prev. Desenv. Central',        color:'#3b82f6' },
+  { key:'realDesenv',     label:'% Real. Desenv. Central',        color:'#22c55e' },
+  { key:'prevValidScrum', label:'Prev. Validado (Scrum)**',       color:'#a78bfa' },
+  { key:'valid',          label:'% Validado Real',                color:'#f43f5e' },
+];
+
+// ── MARCOS (deploys) ──
+const MARCOS = [
+  { data:'09/04/2026', label:'Liberado para teste' },
+  { data:'17/08/2026', label:'Liberado para teste' },
+];
+
+// ── MARCO "ESTAMOS AQUI" (sempre a data de hoje, no dia em que o gráfico é acessado) ──
+const _hoje = new Date();
+const _dd = String(_hoje.getDate()).padStart(2, '0');
+const _mm = String(_hoje.getMonth() + 1).padStart(2, '0');
+const _aaaa = _hoje.getFullYear();
+const MARCO_ATUAL = {
+  data: `${_dd}/${_mm}/${_aaaa}`,
+  dataCurta: `${_dd}/${_mm}/${String(_aaaa).slice(2)}`,
+  label: 'ESTAMOS AQUI'
+};
+
+// Cabeçalho: data de referência = hoje (mesma regra do "ESTAMOS AQUI")
+(function () {
+  const el = document.getElementById('hdr-data-ref');
+  if (el) el.textContent = MARCO_ATUAL.data;
+})();
+
+// Converte "qui. 09/04/26" ou "09/04/2026" em Date
+function parseData(str) {
+  const m = String(str).match(/(\d{2})\/(\d{2})\/(\d{2,4})/);
+  if (!m) return null;
+  let ano = parseInt(m[3], 10);
+  if (ano < 100) ano += 2000;
+  return new Date(ano, parseInt(m[2],10) - 1, parseInt(m[1],10));
+}
+
+// Retorna a posição (índice fracionário) de uma data no eixo X dos sprints
+function posicaoMarco(dataStr) {
+  const alvo = parseData(dataStr);
+  if (!alvo) return null;
+  const datas = DADOS.map(d => parseData(d.ter));
+  if (alvo <= datas[0]) return 0;
+  if (alvo >= datas[datas.length - 1]) return datas.length - 1;
+  for (let i = 0; i < datas.length - 1; i++) {
+    if (alvo >= datas[i] && alvo <= datas[i + 1]) {
+      const frac = (alvo - datas[i]) / (datas[i + 1] - datas[i]);
+      return i + frac;
+    }
+  }
+  return null;
+}
+
+// ── LEGENDA ──
+document.getElementById('legend').innerHTML = SERIES.map(s =>
+  `<span class="leg-item"><span class="leg-line" style="background:${s.color}"></span>${s.label}</span>`
+).join('');
+
+// ── TABELA ──
+function renderTabela() {
+  document.getElementById('tbody').innerHTML = DADOS.map((d, i) => `
+    <tr>
+      <td class="sprint">${d.sprint}</td>
+      <td>${d.ini}</td>
+      <td>${d.ter}</td>
+      <td class="num">${isNA(d.prevDesenv) ? 'NA' : d.prevDesenv + '%'}</td>
+      <td class="num">${isNA(d.realDesenv) ? 'NA' : d.realDesenv + '%'}</td>
+      <td class="num">${isNA(d.prevValidScrum) ? 'NA' : d.prevValidScrum + '%'}</td>
+      <td class="num">${isNA(d.valid) ? 'NA' : d.valid + '%'}</td>
+      <td class="col-acoes"><button class="btn-row-edit" onclick="editarLinha(${i})">✏️ Editar</button><button class="btn-row-del" onclick="excluirLinha(${i})">🗑 Excluir</button></td>
+    </tr>
+  `).join('');
+}
+renderTabela();
+
+// ── COLLAPSE DA LISTA DE SPRINTS ──
+function toggleTabelaSprints() {
+  const wrap = document.getElementById('tabela-sprints-wrap');
+  const chevron = document.getElementById('chevron-sprints');
+  const hidden = wrap.style.display === 'none';
+  wrap.style.display = hidden ? '' : 'none';
+  chevron.style.transform = hidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+// ── EDIÇÃO ──
+let editIndex = null;
+
+function toggleEdicao() {
+  document.body.classList.toggle('edit-mode');
+  document.getElementById('btn-edit-dados').classList.toggle('active');
+}
+
+function editarLinha(i) {
+  editIndex = i;
+  const d = DADOS[i];
+  document.getElementById('m-sprint').value        = d.sprint || '';
+  document.getElementById('m-ini').value           = d.ini || '';
+  document.getElementById('m-ter').value           = d.ter || '';
+  document.getElementById('m-prevDesenv').value    = d.prevDesenv ?? '';
+  document.getElementById('m-realDesenv').value    = d.realDesenv ?? '';
+  document.getElementById('m-prevValidScrum').value= d.prevValidScrum ?? '';
+  document.getElementById('m-valid').value         = d.valid ?? '';
+  document.querySelector('#modal h3').textContent = 'Editar dados do Sprint';
+  document.getElementById('modal').classList.add('show');
+}
+
+function excluirLinha(i) {
+  const d = DADOS[i];
+  if (!confirm('Excluir "' + (d?.sprint || 'este registro') + '"? Esta ação não pode ser desfeita.')) return;
+  DADOS.splice(i, 1);
+  salvarNoStorage();
+  renderTabela();
+  drawChart();
+  renderConclusao();
+}
+
+// ── TOOLTIP (previsto x realizado ao passar o mouse) ──
+let CHART_GEO = null;
+let TOOLTIP_LIGADO = false;
+
+function ligarTooltip() {
+  if (TOOLTIP_LIGADO) return;
+  const canvas = document.getElementById('chart');
+  const tip = document.getElementById('chart-tip');
+  if (!canvas || !tip) return;
+  TOOLTIP_LIGADO = true;
+
+  const fmt = v => isNA(v) ? 'NA' : v + '%';
+  const dev = (r, p) => (isNA(r) || isNA(p)) ? null : Math.round(r - p);
+  const corDev = d => d === null ? '#64748b'
+    : d >= -5 ? '#22c55e' : d >= -10 ? '#eab308' : d >= -15 ? '#f43f5e' : '#a78bfa';
+  const linha = (rot, val, cor) =>
+    `<div class="tip-linha"><span style="color:${cor}">${rot}</span><strong style="color:${cor}">${val}</strong></div>`;
+
+  canvas.addEventListener('mousemove', function (ev) {
+    if (!CHART_GEO) return;
+    const r = canvas.getBoundingClientRect();
+    const mx = ev.clientX - r.left;
+    const { padL, step, n } = CHART_GEO;
+
+    // sprint mais próxima do cursor
+    let idx = 0, melhor = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs((padL + step * i) - mx);
+      if (dist < melhor) { melhor = dist; idx = i; }
+    }
+    if (melhor > 40) { tip.style.display = 'none'; return; }
+
+    const d = DADOS[idx];
+    if (!d) { tip.style.display = 'none'; return; }
+    const dataCurta = (String(d.ter).match(/\d{2}\/\d{2}\/\d{2,4}/) || ['–'])[0];
+    const devDes = dev(d.realDesenv, d.prevDesenv);
+    const devVal = dev(d.valid, d.prevValidScrum);
+
+    tip.innerHTML =
+      `<div class="tip-data">${d.sprint} · ${dataCurta}</div>` +
+      linha('Previsto', fmt(d.prevDesenv), '#3b82f6') +
+      linha('Realizado', fmt(d.realDesenv), '#22c55e') +
+      linha('Desvio', devDes === null ? '–' : (devDes >= 0 ? '+' : '') + devDes + ' p.p.', corDev(devDes)) +
+      `<div class="tip-sep"></div>` +
+      linha('Prev. Validado', fmt(d.prevValidScrum), '#a78bfa') +
+      linha('Validado Real', fmt(d.valid), '#f43f5e') +
+      linha('Desvio', devVal === null ? '–' : (devVal >= 0 ? '+' : '') + devVal + ' p.p.', corDev(devVal));
+
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = (padL + step * idx) + 14;
+    if (left + tw > r.width) left = (padL + step * idx) - tw - 14;
+    let top = ev.clientY - r.top - th / 2;
+    top = Math.max(4, Math.min(top, r.height - th - 4));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  canvas.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+}
+
+// ── GRÁFICO ──
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const wrap = canvas.parentElement.getBoundingClientRect();
+  canvas.width = wrap.width;
+  canvas.height = wrap.height;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const padL = 44, padR = 20, padT = 20, padB = 44;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = DADOS.length;
+  const step = n > 1 ? chartW / (n - 1) : chartW;
+  const maxVal = 100;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid horizontal + labels Y
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#5f7590';
+  ctx.font = '10px Inter, sans-serif';
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (chartH / 5) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.fillText((100 - i * 20) + '%', padL - 8, y + 3);
+  }
+
+  // Labels X (sprints)
+  ctx.fillStyle = '#b0bfd0';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    ctx.fillText(d.sprint, x, H - 22);
+    ctx.fillStyle = '#5f7590';
+    ctx.font = '9px Inter, sans-serif';
+    ctx.fillText(d.ter.replace(/^\w+\.\s/, ''), x, H - 8);
+    ctx.fillStyle = '#b0bfd0';
+    ctx.font = '11px Inter, sans-serif';
+  });
+
+  // Desenha os marcos (linhas verticais tracejadas)
+  MARCOS.forEach(mk => {
+    const pos = posicaoMarco(mk.data);
+    if (pos === null) return;
+    const x = padL + step * pos;
+    // linha tracejada
+    ctx.save();
+    ctx.strokeStyle = '#fb923c';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, padT);
+    ctx.lineTo(x, padT + chartH);
+    ctx.stroke();
+    ctx.restore();
+    // etiqueta no topo
+    const txt = mk.label + ' ' + mk.data;
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    const lw = ctx.measureText(txt).width;
+    let bx = x;
+    // evita cortar nas bordas
+    if (bx - lw/2 - 6 < padL) bx = padL + lw/2 + 6;
+    if (bx + lw/2 + 6 > W - padR) bx = W - padR - lw/2 - 6;
+    ctx.fillStyle = '#fb923c';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - lw/2 - 6, padT - 2, lw + 12, 16, 4); ctx.fill(); }
+    else ctx.fillRect(bx - lw/2 - 6, padT - 2, lw + 12, 16);
+    ctx.fillStyle = '#0b1120';
+    ctx.fillText(txt, bx, padT + 9);
+  });
+
+  // Desenha o marco "ESTAMOS AQUI" (mesmo padrão do Revenue: vermelho, etiqueta no topo, linha tracejada)
+  (function desenhaMarcoAtual() {
+    const pos = posicaoMarco(MARCO_ATUAL.data);
+    if (pos === null) return;
+    const x = padL + step * pos;
+    // linha vertical tracejada vermelha
+    ctx.save();
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, padT);
+    ctx.lineTo(x, padT + chartH);
+    ctx.stroke();
+    ctx.restore();
+    // etiqueta "ESTAMOS AQUI · data" no topo
+    ctx.save();
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    const rotulo = MARCO_ATUAL.label + ' · ' + MARCO_ATUAL.dataCurta;
+    const lw = ctx.measureText(rotulo).width;
+    let bx = x;
+    if (bx - lw/2 - 6 < padL) bx = padL + lw/2 + 6;
+    if (bx + lw/2 + 6 > W - padR) bx = W - padR - lw/2 - 6;
+    ctx.fillStyle = '#f43f5e';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx - lw/2 - 6, padT - 16, lw + 12, 15, 4); ctx.fill(); }
+    else ctx.fillRect(bx - lw/2 - 6, padT - 16, lw + 12, 15);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(rotulo, bx, padT - 5);
+    ctx.restore();
+  })();
+
+  // 1) Desenha todas as linhas e pontos primeiro
+  SERIES.forEach(s => {
+    const vals = DADOS.map(d => d[s.key]);
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    let iniciado = false;
+    vals.forEach((v, i) => {
+      if (isNA(v)) { iniciado = false; return; }
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      if (!iniciado) { ctx.moveTo(x, y); iniciado = true; }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    vals.forEach((v, i) => {
+      if (isNA(v) || v === '' || isNaN(v)) return;
+      const x = padL + step * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  // 2) Rótulos com anti-colisão por coluna (empilha mantendo espaçamento mínimo)
+  const LH = 13; // altura/espaçamento mínimo entre rótulos
+  ctx.font = 'bold 9px Inter, sans-serif';
+  ctx.textAlign = 'center';
+
+  DADOS.forEach((d, i) => {
+    const x = padL + step * i;
+    // A partir da Sprint 8 (índice 7), o rótulo de "Prev. Validado (Scrum)" vai ABAIXO da linha
+    const validadoAbaixo = i >= 7;
+
+    // coleta rótulos válidos da coluna (ignora NA)
+    let labels = SERIES
+      .filter(s => !isNA(d[s.key]) && d[s.key] !== '' && !isNaN(d[s.key]))
+      .map(s => ({
+        key: s.key,
+        txt: d[s.key] + '%',
+        color: s.color,
+        yPoint: padT + chartH - (d[s.key] / maxVal) * chartH,
+      }));
+
+    const belowLabels = labels.filter(l => validadoAbaixo && l.key === 'prevValidScrum');
+    const aboveLabels = labels.filter(l => !(validadoAbaixo && l.key === 'prevValidScrum'));
+
+    // ── Rótulos ACIMA (empilhamento com anti-colisão) ──
+    aboveLabels.sort((a, b) => a.yPoint - b.yPoint);
+    aboveLabels.forEach(l => { l.y = l.yPoint - 10; });
+    for (let k = 1; k < aboveLabels.length; k++) {
+      if (aboveLabels[k].y - aboveLabels[k-1].y < LH) {
+        aboveLabels[k].y = aboveLabels[k-1].y + LH;
+      }
+    }
+    if (aboveLabels.length) {
+      const bottomLimit = padT + chartH - 2;
+      const overflow = aboveLabels[aboveLabels.length-1].y - bottomLimit;
+      if (overflow > 0) aboveLabels.forEach(l => l.y -= overflow);
+      const topLimit = padT + 8;
+      if (aboveLabels[0].y < topLimit) {
+        const shift = topLimit - aboveLabels[0].y;
+        aboveLabels.forEach(l => l.y += shift);
+      }
+    }
+
+    // ── Rótulos ABAIXO da linha ──
+    belowLabels.forEach(l => { l.y = l.yPoint + 18; });
+
+    // desenha chip + texto
+    [...aboveLabels, ...belowLabels].forEach(l => {
+      const lw = ctx.measureText(l.txt).width;
+      ctx.fillStyle = 'rgba(3,8,17,0.85)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x - lw/2 - 3, l.y - 9, lw + 6, 13, 3); ctx.fill(); }
+      else ctx.fillRect(x - lw/2 - 3, l.y - 9, lw + 6, 13);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.txt, x, l.y);
+    });
+  });
+
+  // Geometria para o tooltip
+  CHART_GEO = { padL, step, n };
+  ligarTooltip();
+}
+
+// ── MODAL INCLUIR DADOS ──
+// Máscara automática de data: preenche "abrev. dd/mm/aa" com o dia da semana
+const DIAS_SEMANA_ABBR = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+function mascaraDataSemana(input) {
+  const dig = input.value.replace(/\D/g, '').slice(0, 6);
+  let out = dig;
+  if (dig.length >= 5)      out = dig.slice(0,2) + '/' + dig.slice(2,4) + '/' + dig.slice(4,6);
+  else if (dig.length >= 3) out = dig.slice(0,2) + '/' + dig.slice(2,4);
+
+  if (dig.length === 6) {
+    const dd = parseInt(dig.slice(0,2), 10);
+    const mm = parseInt(dig.slice(2,4), 10);
+    const aa = parseInt(dig.slice(4,6), 10);
+    const dt = new Date(2000 + aa, mm - 1, dd);
+    if (!isNaN(dt) && dt.getDate() === dd && dt.getMonth() === mm - 1) {
+      out = DIAS_SEMANA_ABBR[dt.getDay()] + ' ' + out;
+    }
+  }
+  input.value = out;
+}
+
+function abrirModal() {
+  editIndex = null;
+  document.querySelector('#modal h3').textContent = 'Incluir dados do Sprint';
+  document.getElementById('modal').classList.add('show');
+}
+function fecharModal() {
+  document.getElementById('modal').classList.remove('show');
+  editIndex = null;
+}
+function salvarDados() {
+  const sprint = document.getElementById('m-sprint').value.trim();
+  if (!sprint) { alert('Informe o nome do Sprint'); return; }
+  const registro = {
+    sprint,
+    ini:            document.getElementById('m-ini').value.trim(),
+    ter:            document.getElementById('m-ter').value.trim(),
+    prevDesenv:     parseValor('m-prevDesenv'),
+    realDesenv:     parseValor('m-realDesenv'),
+    prevValidScrum: parseValor('m-prevValidScrum'),
+    valid:          parseValor('m-valid'),
+  };
+  if (editIndex !== null) {
+    // Preserva campos extras (ex: prevValid) que não estão no modal
+    DADOS[editIndex] = { ...DADOS[editIndex], ...registro };
+  } else {
+    DADOS.push(registro);
+  }
+  salvarNoStorage();
+  renderTabela();
+  drawChart();
+  renderConclusao();
+  // Limpa campos
+  ['m-sprint','m-ini','m-ter','m-prevDesenv','m-realDesenv','m-prevValidScrum','m-valid']
+    .forEach(id => document.getElementById(id).value = '');
+  fecharModal();
+}
+// Fecha modal ao clicar fora
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) fecharModal();
+});
+
+// renderConclusao era chamada ao salvar/excluir, mas nunca foi definida: o erro
+// interrompia o salvamento antes de fechar o modal. Mantida como função vazia.
+function renderConclusao() {}
+
+window.addEventListener('load', drawChart);
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>
