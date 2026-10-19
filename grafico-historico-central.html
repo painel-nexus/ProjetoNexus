@@ -40,9 +40,9 @@
     .hdr-title h1 { font-size: 18px; font-weight: 800; }
     .hdr-title p { font-size: 12px; color: var(--text2); }
     .hdr-actions { display: flex; align-items: center; padding: 12px 20px; }
-    .hdr-left { display: flex; align-items: center; gap: 12px; }
-    .hdr-left h1 { font-size: 18px; font-weight: 800; }
-    .hdr-left p { font-size: 12px; color: var(--muted); }
+    /* Havia aqui regras .hdr-left (h1 e p, este último em --muted) que esta
+       tela não usa: o cabeçalho é hdr-logo + hdr-title + hdr-actions. Além de
+       mortas, contradiziam o --text2 padronizado no subtítulo. */
     .btn-back {
       background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
       padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none;
@@ -217,13 +217,14 @@
   </div>
   <div class="hdr-title">
     <h1>HISTÓRICO CENTRAL</h1>
-    <p>Evolução por Sprint — Desenvolvimento e Validação</p>
+    <!-- Emissão no mesmo padrão do painel: span só com id, sem classe de
+         estilo, para herdar tamanho e cor da linha. -->
+    <p>Evolução por Sprint — Desenvolvimento e Validação <span id="hdr-emissao"></span></p>
   </div>
+  <!-- Caixa "Data de referência" removida, como no painel: ela mostrava a data
+       de hoje, que não é a data a que a série se refere. A data de hoje continua
+       visível onde significa algo — no marco "ESTAMOS AQUI" do gráfico. -->
   <div class="hdr-actions" style="gap:14px">
-    <div style="border:1px solid var(--border2);border-radius:6px;padding:6px 12px;text-align:center">
-      <div style="font-size:10px;color:var(--text2)">Data de referência</div>
-      <div style="font-size:14px;font-weight:700;color:var(--blue2)" id="hdr-data-ref">--/--/----</div>
-    </div>
     <a class="btn-back" href="painel-nexus.html">← Voltar ao Painel</a>
   </div>
 </div>
@@ -406,10 +407,12 @@ const MARCO_ATUAL = {
   label: 'ESTAMOS AQUI'
 };
 
-// Cabeçalho: data de referência = hoje (mesma regra do "ESTAMOS AQUI")
+// Data de emissão no subtítulo. Reaproveita MARCO_ATUAL.data, que já é a data
+// de hoje em DD/MM/AAAA: com uma única origem, a legenda e o marco "ESTAMOS
+// AQUI" do gráfico nunca podem divergir.
 (function () {
-  const el = document.getElementById('hdr-data-ref');
-  if (el) el.textContent = MARCO_ATUAL.data;
+  const el = document.getElementById('hdr-emissao');
+  if (el) el.textContent = ' · emitido em ' + MARCO_ATUAL.data;
 })();
 
 // Converte "qui. 09/04/26" ou "09/04/2026" em Date

@@ -33,13 +33,15 @@
     .hdr-logo-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .hdr-logo-text small { display: block; font-size: 9px; letter-spacing: 2px; color: var(--muted2); text-transform: uppercase; }
     .hdr-logo-text strong { font-size: 22px; font-weight: 900; color: var(--text); letter-spacing: 1px; }
-    .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; border-right: 1px solid var(--border); }
+    /* Sem border-right: a caixa de data à direita foi removida, então o título
+       ocupa o cabeçalho até a borda. */
+    .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; }
     .hdr-title h1 { font-size: 20px; font-weight: 800; }
+    /* A emissão fica dentro deste parágrafo e não tem estilo próprio: herda
+       tamanho e cor, para o cabeçalho não exibir dois cinzas e dois tamanhos no
+       mesmo texto. O span #hdr-emissao existe só como ponto de escrita do
+       render, sem classe de estilo. */
     .hdr-title p { font-size: 12px; color: var(--muted2); }
-    .hdr-date { display: flex; align-items: center; padding: 12px 18px; }
-    .hdr-date-box { border: 1px solid var(--border2); border-radius: 6px; padding: 8px 14px; text-align: center; }
-    .hdr-date-box .dl { font-size: 10px; color: var(--muted2); }
-    .hdr-date-box .dv { font-size: 14px; font-weight: 700; color: var(--blue2); }
 
     /* KPI */
     .kpi-row { display: grid; grid-template-columns: repeat(7,1fr); border-bottom: 1px solid var(--border); }
@@ -408,10 +410,8 @@
       .hdr-logo-text strong { font-size: 11px !important; letter-spacing: .4px !important; }
       .hdr-title { padding: 3px 8px !important; }
       .hdr-title h1 { font-size: 11px !important; }
-      .hdr-title p, .hdr-date-box .dl { font-size: 7px !important; }
-      .hdr-date { padding: 3px 8px !important; }
-      .hdr-date-box { padding: 3px 6px !important; }
-      .hdr-date-box .dv { font-size: 9.5px !important; }
+      /* A emissão herda este tamanho: um só valor para a linha inteira. */
+      .hdr-title p { font-size: 7px !important; }
 
       /* 5 colunas em vez de 7: menos quebra de texto e cartões mais baixos */
       .kpi-row { grid-template-columns: repeat(5, 1fr) !important; }
@@ -486,14 +486,16 @@
       /* Legenda e premissa mantêm o tamanho da tela: com a página inteira
          disponível não há motivo para comprimir o que precisa ser lido. */
 
-      /* O Detalhamento vai completo para o PDF, com todas as frentes e
-         subfrentes abertas. O colapso é um recurso de navegação na tela; num
-         relatório impresso, linha escondida é informação perdida. */
-      #tbl-tbody tr { display: table-row !important; }
+      /* O Detalhamento sai no PDF exatamente como está na tela: o que estiver
+         recolhido fica recolhido, o que estiver aberto fica aberto. Antes havia
+         aqui um "display: table-row !important" que forçava a tabela completa;
+         ele sobrepunha o display:none inline que o colapso aplica, e o PDF
+         deixava de corresponder ao painel. Sem essa regra, o estilo inline
+         definido por aplicarColapsoTabela vale também na impressão. */
 
       .two-col { break-inside: avoid; }
-      /* Com 25 linhas a tabela pode passar de uma página: deixamos quebrar, mas
-         nunca no meio de uma linha, e o cabeçalho se repete na página seguinte. */
+      /* A tabela pode passar de uma página: deixamos quebrar, mas nunca no meio
+         de uma linha, e o cabeçalho se repete na página seguinte. */
       .tbl-section { break-inside: auto; }
       .tbl-section thead { display: table-header-group; }
       .tbl-section tr { break-inside: avoid; }
@@ -545,15 +547,13 @@
       <strong>NEXUS</strong>
     </div>
   </div>
+  <!-- Cabeçalho sem data de referência. A data do registro continua governando
+       o conteúdo (é a régua de atraso dos riscos e aparece na lista de
+       Histórico), só não é mais exibida aqui. Resta a emissão, que só aparece
+       quando o registro publicado não é do dia de hoje. -->
   <div class="hdr-title">
     <h1>PAINEL EXECUTIVO</h1>
-    <p>Status de Execução</p>
-  </div>
-  <div class="hdr-date">
-    <div class="hdr-date-box">
-      <div class="dl">Data de referência</div>
-      <div class="dv" id="hdr-data-ref">--/--/----</div>
-    </div>
+    <p>Status de Execução <span id="hdr-emissao"></span></p>
   </div>
 </div>
 
@@ -570,7 +570,7 @@
     <div class="kpi-sub" id="kpi-realizado-sub">–</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-top"><div class="kpi-icon ki-red">📉</div><span class="kpi-label">Desvio Global</span></div>
+    <div class="kpi-top"><div class="kpi-icon ki-red" id="kpi-desvio-icon">📉</div><span class="kpi-label">Desvio Global</span></div>
     <div class="kpi-value kv-red" id="kpi-desvio">-- p.p.</div>
     <div class="kpi-sub" id="kpi-desvio-sub">–</div>
   </div>
@@ -605,9 +605,9 @@
     <div class="kpi-sub">Realizado × 74,94%</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-top"><div class="kpi-icon ki-red">📉</div><span class="kpi-label">Desvio de Operações</span></div>
+    <div class="kpi-top"><div class="kpi-icon ki-red" id="kpi-desvio-op-icon">📉</div><span class="kpi-label">Desvio de Operações</span></div>
     <div class="kpi-value kv-red" id="kpi-desvio-op">–</div>
-    <div class="kpi-sub">Previsto Op. − Realizado Op.</div>
+    <div class="kpi-sub">Realizado Op. − Previsto Op.</div>
   </div>
 </div>
 
@@ -1056,15 +1056,19 @@ const DEFAULTS = {
     'dest-dev-revenue': { previsto:'92', realizado:'83' },
     'dest-uat-revenue': { previsto:'36', realizado:'6'  },
   },
+  // Ícones definidos explicitamente: as REGRAS_ICONE automáticas cobrem bem os
+  // temas de desvio, represamento e responsabilidade, mas não os de projeção de
+  // prazo, que cairiam nos ícones de reserva (sem significado). Como o render dá
+  // prioridade ao ícone do item, fixá-los aqui garante a leitura pretendida.
   resumo: [
-    'A frente de Desenvolvimento, que responde por 44,1% do projeto e está no escopo do fornecedor, apresenta progresso global de 24%, com desvio de 16 p.p. em relação ao previsto (40%).',
-    'As validações registraram a melhor evolução do período: o Consolidado passou de 12% para 27%, com ritmo de 3,8 p.p. por sprint nas últimas quatro sprints, contra 1,7 p.p. na média histórica.',
-    'O principal fator do atraso nos testes foi o represamento das entregas do fornecedor: a validação do Revenue permaneceu em 0% por 11 sprints (181 dias) e a da Central por 6 sprints (97 dias), o que impediu a homologação pelas áreas de negócio no ritmo planejado.',
-    'O desenvolvimento da Central foi reajustado de 85% para 70% no Sprint 17 por correção da base de medição, revelando desvio de 15 p.p. que não aparecia nos reportes anteriores. Recomenda-se revisar e republicar a série histórica com o fornecedor.',
-    'Para a meta de 100% do desenvolvimento em 20/11/26 restam 3 sprints, o que exigiria 10,0 p.p. por sprint na Central contra 5,3 p.p. do ritmo observado. O Revenue permanece em 92% há três sprints.',
-    'A fila de validação é de 54 p.p.; no ritmo atual a conclusão se projeta para agosto/2027, contra a meta de 15/01/27 no Reteste. Recomenda-se repactuação das datas.',
-    'Embora Testes e Validações sejam responsabilidade das áreas de negócio, a etapa de Desenvolvimento é de responsabilidade do fornecedor, que deve garantir a disponibilização do produto em condições adequadas para homologação.',
-    'Recomenda-se que o fornecedor priorize testes e homologação, garantindo recursos adequados, massa de dados, material de apoio atualizado e suporte ao negócio, evitando cancelamentos das sessões planejadas.',
+    { icone: '\u{1F4C9}', texto: 'A frente de Desenvolvimento, que responde por 44,1% do projeto e está no escopo do fornecedor, apresenta progresso global de 24%, com desvio de 16 p.p. em relação ao previsto (40%).' },
+    { icone: '\u{1F4C8}', texto: 'As validações registraram a melhor evolução do período: o Consolidado passou de 12% para 27%, com ritmo de 3,8 p.p. por sprint nas últimas quatro sprints, contra 1,7 p.p. na média histórica.' },
+    { icone: '\u{1F6A7}', texto: 'O principal fator do atraso nos testes foi o represamento das entregas do fornecedor: a validação do Revenue permaneceu em 0% por 11 sprints (181 dias) e a da Central por 6 sprints (97 dias), o que impediu a homologação pelas áreas de negócio no ritmo planejado.' },
+    { icone: '\u{1F50D}', texto: 'O desenvolvimento da Central foi reajustado de 85% para 70% no Sprint 17 por correção da base de medição, revelando desvio de 15 p.p. que não aparecia nos reportes anteriores. Recomenda-se revisar e republicar a série histórica com o fornecedor.' },
+    { icone: '\u{1F5D3}\uFE0F', texto: 'Para a meta de 100% do desenvolvimento em 20/11/26 restam 3 sprints, o que exigiria 10,0 p.p. por sprint na Central contra 5,3 p.p. do ritmo observado. O Revenue permanece em 92% há três sprints.' },
+    { icone: '\u23F3', texto: 'A fila de validação é de 54 p.p.; no ritmo atual a conclusão se projeta para agosto/2027, contra a meta de 15/01/27 no Reteste. Recomenda-se repactuação das datas.' },
+    { icone: '\u26A0\uFE0F', texto: 'Embora Testes e Validações sejam responsabilidade das áreas de negócio, a etapa de Desenvolvimento é de responsabilidade do fornecedor, que deve garantir a disponibilização do produto em condições adequadas para homologação.' },
+    { icone: '\u{1F6A8}', texto: 'Recomenda-se que o fornecedor priorize testes e homologação, garantindo recursos adequados, massa de dados, material de apoio atualizado e suporte ao negócio, evitando cancelamentos das sessões planejadas.' },
   ],
   riscos: [
     { id: 'R-01', texto: 'Testes e validações Central e Revenue abaixo do previsto, alto risco de ATRASO do plano de projeto.', acoes: [
@@ -1436,6 +1440,16 @@ function miniBar(valor, tipo) {
   return `<div class="tb-bar"><span class="tb-pct">${valor}%</span><div class="tb-track"><div class="tb-fill ${cls}" style="width:${pct(valor)}%"></div></div></div>`;
 }
 
+// Ícone e cor do círculo dos cards de desvio, acompanhando o sinal do valor.
+// Antes o ícone era 📉 fixo no HTML, o que contradizia o número quando o
+// realizado passava o previsto: valor verde com ícone de queda.
+function aplicarIconeDesvio(id, valor) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = valor > 0 ? '📈' : valor < 0 ? '📉' : '\u2796';
+  el.className   = 'kpi-icon ' + (valor > 0 ? 'ki-green' : valor < 0 ? 'ki-red' : 'ki-blue');
+}
+
 function render(dados) {
   // A data oficial do painel vem do calendário do registro ativo salvo no admin.
   // Usa a data do sistema apenas quando ainda não existe um registro com dataRef.
@@ -1446,8 +1460,26 @@ function render(dados) {
   const r = pct(dados.realizado);
   const d = r - p;
 
-  // Header data — sempre a data de hoje
-  document.getElementById('hdr-data-ref').textContent = formatDateIso(obterDataHojeISO());
+  // ── Data do cabeçalho ──
+  // Existem duas datas no painel e elas significam coisas diferentes: a do
+  // REGISTRO é o momento que os números medem, e a de HOJE é quando o relatório
+  // foi tirado. Nenhuma das duas aparece em destaque no cabeçalho.
+  //
+  // A do registro não é exibida, mas continua governando o conteúdo: é a régua
+  // que decide quais ações de risco estão atrasadas e identifica o registro na
+  // lista de Histórico. O título do documento também fica fixo, sem data.
+  //
+  // Sobra um único aviso: quando o registro publicado não é do dia de hoje,
+  // mostramos "emitido em <hoje>" para deixar claro que o painel reflete uma
+  // medição anterior. Coincidindo as datas, nada é exibido.
+  const dataRegistroTexto = formatDateIso(dados.dataRef);
+  const dataHojeTexto     = formatDateIso(obterDataHojeISO());
+
+  const emissaoEl = document.getElementById('hdr-emissao');
+  if (emissaoEl) {
+    emissaoEl.textContent = dataRegistroTexto === dataHojeTexto
+      ? '' : ' · emitido em ' + dataHojeTexto;
+  }
 
   // KPIs
   document.getElementById('kpi-previsto').textContent     = p + '%';
@@ -1460,21 +1492,27 @@ function render(dados) {
   const opElR = document.getElementById('kpi-realizado-op');
   const opReal = Math.round(r * 0.7494);
   if (opElR) opElR.textContent = opReal + '%';
-  // Desvio de Operações = Previsto Op. − Realizado Op.
+  // Desvio de Operações = Realizado Op. − Previsto Op.
+  // Mesma convenção do Desvio geral logo abaixo: positivo significa acima do
+  // previsto (verde) e negativo, abaixo do previsto (vermelho).
   const opElD = document.getElementById('kpi-desvio-op');
   if (opElD) {
-    const dOp = opPrev - opReal;
-    opElD.textContent = (dOp >= 0 ? '+' : '') + dOp + ' p.p.';
-    opElD.className = 'kpi-value ' + (dOp > 0 ? 'kv-red' : dOp < 0 ? 'kv-green' : 'kv-blue');
+    const dOp = opReal - opPrev;
+    opElD.textContent = (dOp > 0 ? '+' : '') + dOp + ' p.p.';
+    opElD.className = 'kpi-value ' + (dOp > 0 ? 'kv-green' : dOp < 0 ? 'kv-red' : 'kv-blue');
+    aplicarIconeDesvio('kpi-desvio-op-icon', dOp);
   }
   document.getElementById('kpi-previsto-sub').textContent = (dados.duracao || '') + ' (início ' + (dados.inicio || '') + ')';
   document.getElementById('kpi-realizado-sub').textContent= (dados.duracao || '') + ' (início ' + (dados.inicio || '') + ')';
 
   const devEl  = document.getElementById('kpi-desvio');
   const devSub = document.getElementById('kpi-desvio-sub');
-  devEl.textContent  = (d >= 0 ? '+' : '') + d + ' p.p.';
-  devEl.className    = 'kpi-value ' + (d >= 0 ? 'kv-green' : 'kv-red');
-  devSub.textContent = d >= 0 ? 'Acima do previsto' : 'Abaixo do previsto';
+  // Desvio zero é neutro, não "acima do previsto": o realizado bateu
+  // exatamente o planejado, então valor, legenda e ícone ficam neutros.
+  devEl.textContent  = (d > 0 ? '+' : '') + d + ' p.p.';
+  devEl.className    = 'kpi-value ' + (d > 0 ? 'kv-green' : d < 0 ? 'kv-red' : 'kv-blue');
+  devSub.textContent = d > 0 ? 'Acima do previsto' : d < 0 ? 'Abaixo do previsto' : 'Em linha com o previsto';
+  aplicarIconeDesvio('kpi-desvio-icon', d);
 
   const duracaoCalc = calcDuracaoTotal(dados.inicio, dados.termino) || dados.duracao || '–';
   document.getElementById('kpi-duracao').textContent = duracaoCalc;

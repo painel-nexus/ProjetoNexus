@@ -40,6 +40,14 @@
     .hdr-title { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 12px 20px; }
     .hdr-title h1 { font-size: 18px; font-weight: 800; }
     .hdr-title p { font-size: 12px; color: var(--text2); }
+    /* Área de ações e botão de voltar: mesmas medidas das telas Central e
+       Consolidado, que já tinham o botão no cabeçalho. */
+    .hdr-actions { display: flex; align-items: center; padding: 12px 20px; }
+    .btn-back {
+      background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none;
+    }
+    .btn-back:hover { border-color: var(--blue); color: var(--text); }
 
     /* PANEL */
     .panel {
@@ -119,7 +127,9 @@
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       html, body { background: var(--bg) !important; }
-      .btn-pdf, .btn-add, .btn-edit, .tbl-actions { display: none !important; }
+      /* .btn-back entra aqui pelo mesmo motivo dos outros: é navegação, não
+         conteúdo do relatório. */
+      .btn-back, .btn-pdf, .btn-add, .btn-edit, .tbl-actions { display: none !important; }
       .panel { break-inside: avoid; }
     }
 
@@ -162,7 +172,12 @@
   </div>
   <div class="hdr-title">
     <h1>HISTÓRICO REVENUE</h1>
-    <p>Evolução por Sprint — Desenvolvimento e Validação</p>
+    <!-- Emissão no mesmo padrão do painel: span só com id, sem classe de
+         estilo, para herdar tamanho e cor da linha. -->
+    <p>Evolução por Sprint — Desenvolvimento e Validação <span id="hdr-emissao"></span></p>
+  </div>
+  <div class="hdr-actions">
+    <a class="btn-back" href="painel-nexus.html">← Voltar ao Painel</a>
   </div>
 </div>
 
@@ -272,6 +287,22 @@
 </div>
 
 <script>
+// ─────────────────────────────────────────────
+// DATA DE EMISSÃO (subtítulo do cabeçalho)
+// ─────────────────────────────────────────────
+// Data local do calendário, montada campo a campo para não depender de fuso:
+// toISOString() converte para UTC e mostraria o dia anterior em fuso negativo.
+function dataEmissaoHoje() {
+  const h = new Date();
+  return String(h.getDate()).padStart(2, '0') + '/' +
+         String(h.getMonth() + 1).padStart(2, '0') + '/' + h.getFullYear();
+}
+
+(function () {
+  const el = document.getElementById('hdr-emissao');
+  if (el) el.textContent = ' · emitido em ' + dataEmissaoHoje();
+})();
+
 // ─────────────────────────────────────────────
 // DADOS REVENUE
 // ─────────────────────────────────────────────

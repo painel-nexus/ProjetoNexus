@@ -31,7 +31,10 @@
     .hdr-left { display: flex; align-items: center; gap: 12px; }
     .hdr-left img { height: 38px; width: auto; }
     .hdr-left h1 { font-size: 18px; font-weight: 800; }
-    .hdr-left p { font-size: 12px; color: var(--muted); }
+    /* --text2 em vez de --muted, igual ao subtítulo das telas Central e
+       Revenue: o --muted desta paleta é bem mais escuro e deixava a legenda
+       apagada em relação às outras duas telas. */
+    .hdr-left p { font-size: 12px; color: var(--text2); }
     .btn-back {
       background: var(--surface2); border: 1px solid var(--border2); color: var(--text2);
       padding: 8px 16px; border-radius: 8px; font-size: 13px; text-decoration: none;
@@ -214,8 +217,10 @@
   <div class="hdr-left">
     <img src="LOGO MV.png" alt="Logo"/>
     <div>
-      <h1>Histórico Consolidado</h1>
-      <p>Central + Revenue · Evolução por Sprint</p>
+      <h1>HISTÓRICO CONSOLIDADO</h1>
+      <!-- Emissão no mesmo padrão do painel: span só com id, sem classe de
+           estilo, para herdar tamanho e cor da linha. -->
+      <p>Central + Revenue · Evolução por Sprint <span id="hdr-emissao"></span></p>
     </div>
   </div>
   <a class="btn-back" href="painel-nexus.html">← Voltar ao Painel</a>
@@ -317,6 +322,20 @@
 </div>
 
 <script>
+// ── DATA DE EMISSÃO (subtítulo do cabeçalho) ──
+// Data local do calendário, montada campo a campo para não depender de fuso:
+// toISOString() converte para UTC e mostraria o dia anterior em fuso negativo.
+function dataEmissaoHoje() {
+  const h = new Date();
+  return String(h.getDate()).padStart(2, '0') + '/' +
+         String(h.getMonth() + 1).padStart(2, '0') + '/' + h.getFullYear();
+}
+
+(function () {
+  const el = document.getElementById('hdr-emissao');
+  if (el) el.textContent = ' · emitido em ' + dataEmissaoHoje();
+})();
+
 const KEY_CENTRAL = 'nexus_central_dados';
 const KEY_REVENUE = 'nexus_revenue_sprints';
 

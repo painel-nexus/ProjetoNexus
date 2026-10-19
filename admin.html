@@ -119,6 +119,16 @@
     .icon-pick:focus{outline:1px solid var(--blue);border-color:var(--blue)}
     .btn-rem{background:none;border:1px solid var(--border2);color:var(--muted);padding:6px 10px;border-radius:5px;cursor:pointer;font-size:12px}
     .btn-rem:hover{border-color:var(--red);color:var(--red)}
+    /* Setas de reordenação do Resumo Executivo: par vertical com a mesma
+       altura total do botão de remover ao lado, para a linha não desalinhar. */
+    .mv-box{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+    .btn-mv{background:none;border:1px solid var(--border2);color:var(--muted);
+      width:26px;height:14px;padding:0;border-radius:4px;font-size:8px;line-height:1;
+      cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center}
+    .btn-mv:hover:not(:disabled){border-color:var(--blue2);color:var(--blue2)}
+    /* Primeiro e último item têm a seta correspondente desabilitada, para o
+       limite da lista ficar visível em vez de o clique não fazer nada. */
+    .btn-mv:disabled{opacity:.25;cursor:default}
     .btn-add{background:none;border:1px dashed var(--border2);color:var(--muted2);padding:8px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;margin-top:6px}
     .btn-add:hover{border-color:var(--blue2);color:var(--blue2)}
 
@@ -229,7 +239,7 @@
         <div class="fg"><label>Frentes Ativas (automática)</label><input type="number" id="kpi-frentes" class="desvio-field" readonly/></div>
         <div class="fg"><label>Progresso Previsto Operações (auto = Previsto × 74,94%)</label><input type="text" id="kpi-previsto-op" class="desvio-field" readonly/></div>
         <div class="fg"><label>Progresso Realizado Operações (auto = Realizado × 74,94%)</label><input type="text" id="kpi-realizado-op" class="desvio-field" readonly/></div>
-        <div class="fg"><label>Desvio de Operações (auto = Previsto Op. − Realizado Op.)</label><input type="text" id="kpi-desvio-op" class="desvio-field" readonly/></div>
+        <div class="fg"><label>Desvio de Operações (auto = Realizado Op. − Previsto Op.)</label><input type="text" id="kpi-desvio-op" class="desvio-field" readonly/></div>
       </div>
     </div>
   </div>
@@ -1061,7 +1071,7 @@ function calcDesvioGlobal() {
   const p=Math.round(parseFloat(document.getElementById('kpi-previsto').value)||0);
   const r=Math.round(parseFloat(document.getElementById('kpi-realizado').value)||0);
   const d=r-p, el=document.getElementById('kpi-desvio');
-  el.value=(d>=0?'+':'')+d+' p.p.';
+  el.value=(d>0?'+':'')+d+' p.p.';
   el.style.color=d>0?'var(--green)':d<0?'var(--red)':'var(--muted2)';
   // Progresso Previsto Operações = Previsto × 74,94%
   const opPrev=Math.round(p*0.7494);
@@ -1071,9 +1081,11 @@ function calcDesvioGlobal() {
   const opReal=Math.round(r*0.7494);
   const elOpR=document.getElementById('kpi-realizado-op');
   if(elOpR){ elOpR.value=opReal+'%'; }
-  // Desvio de Operações = Previsto Op. − Realizado Op.
+  // Desvio de Operações = Realizado Op. − Previsto Op.
+  // Mesma convenção do desvio global acima (r-p): positivo é acima do previsto
+  // (verde) e negativo, abaixo do previsto (vermelho).
   const elOpD=document.getElementById('kpi-desvio-op');
-  if(elOpD){ const dOp=opPrev-opReal; elOpD.value=(dOp>=0?'+':'')+dOp+' p.p.'; elOpD.style.color=dOp>0?'var(--red)':dOp<0?'var(--green)':'var(--muted2)'; }
+  if(elOpD){ const dOp=opReal-opPrev; elOpD.value=(dOp>0?'+':'')+dOp+' p.p.'; elOpD.style.color=dOp>0?'var(--green)':dOp<0?'var(--red)':'var(--muted2)'; }
 }
 
 function calcFrente(id) {
@@ -1315,20 +1327,73 @@ function addText(listId, val = '', extra = {}) {
     return;
   }
 
-  // ── Resumo: seletor de ícone + texto ──
+  // ── Resumo: seletor de ícone + texto + setas de reordenação ──
+  // A ordem dos itens do Resumo é a ordem em que eles aparecem no painel, então
+  // reordenar aqui é a única forma de mudar a leitura do bloco sem recortar e
+  // recolar texto entre as caixas.
   let seletor = '';
-  if (listId === 'resumo-list') {
+  let setas = '';
+  const ehResumo = listId === 'resumo-list';
+  if (ehResumo) {
     const icone = typeof extra === 'string' ? extra : (extra.icone || '');
     const opcoes = ICONES_RESUMO.map(o =>
       `<option value="${o.v}"${o.v === icone ? ' selected' : ''}>${o.v || '—'}</option>`
     ).join('');
     seletor = `<select class="icon-pick" title="Ícone do item">${opcoes}</select>`;
+    setas =
+      `<div class="mv-box">` +
+      `<button type="button" class="btn-mv mv-up" title="Mover para cima" onclick="moverItemResumo(this,-1)">▲</button>` +
+      `<button type="button" class="btn-mv mv-down" title="Mover para baixo" onclick="moverItemResumo(this,1)">▼</button>` +
+      `</div>`;
   }
 
   div.innerHTML = seletor +
     `<textarea rows="2">${val}</textarea>` +
-    `<button class="btn-rem" onclick="this.parentElement.remove()">✕</button>`;
+    setas +
+    `<button class="btn-rem" onclick="${ehResumo ? 'removerItemResumo(this)' : 'this.parentElement.remove()'}">✕</button>`;
   list.appendChild(div);
+  if (ehResumo) atualizarSetasResumo();
+}
+
+// ── Reordenação do Resumo Executivo ──
+// Move o item uma posição e reavalia os limites. Trabalha direto no DOM porque
+// é dele que getTexts() lê a ordem na hora de salvar: não existe um array
+// intermediário que pudesse ficar fora de sincronia.
+function moverItemResumo(btn, direcao) {
+  const item = btn.closest('.text-item');
+  if (!item) return;
+  const lista = item.parentElement;
+  if (!lista) return;
+
+  if (direcao < 0) {
+    const anterior = item.previousElementSibling;
+    if (!anterior) return;
+    lista.insertBefore(item, anterior);
+  } else {
+    const proximo = item.nextElementSibling;
+    if (!proximo) return;
+    lista.insertBefore(proximo, item);
+  }
+  atualizarSetasResumo();
+}
+
+function removerItemResumo(btn) {
+  const item = btn.closest('.text-item');
+  if (item) item.remove();
+  atualizarSetasResumo();
+}
+
+// Desabilita ▲ no primeiro item e ▼ no último
+function atualizarSetasResumo() {
+  const lista = document.getElementById('resumo-list');
+  if (!lista) return;
+  const itens = [...lista.querySelectorAll(':scope > .text-item')];
+  itens.forEach((item, i) => {
+    const up = item.querySelector('.mv-up');
+    const down = item.querySelector('.mv-down');
+    if (up) up.disabled = i === 0;
+    if (down) down.disabled = i === itens.length - 1;
+  });
 }
 
 // Resumo devolve { icone, texto }; riscos devolve { texto, responsavel, prazo,
@@ -1874,7 +1939,7 @@ function renderHistoricoProgresso() {
       </div>
       <div style="flex:1;min-width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
         <div style="font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;">Desvio Global</div>
-        <div style="font-size:22px;font-weight:800;color:${gdev>=0?'var(--green)':'var(--red)'};">${(gdev>=0?'+':'')+gdev}</div>
+        <div style="font-size:22px;font-weight:800;color:${gdev>0?'var(--green)':gdev<0?'var(--red)':'var(--muted2)'};">${(gdev>=0?'+':'')+gdev}</div>
       </div>
     </div>
     <table class="frente-table" style="width:100%;">
